@@ -6,8 +6,12 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "joblib>=1.4.2",
+    "langcodes>=3.5.0",
+    "matplotlib>=3.10.0",
     "pandas>=2.2.3",
+    "rich>=13.9.4",
     "scikit-learn>=1.6.1",
+    "seaborn>=0.13.2",
     "torch>=2.6.0",
     "transformers>=4.49.0",
 ]
