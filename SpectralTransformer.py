@@ -50,4 +50,4 @@ class SpectralTransformer(BaseEstimator, TransformerMixin):
         #     num_langs, sample_len = x.shape
         #     max_length = max(max_length, sample_len)
 
-        return [circular(x)[0] for x in X]
+        return [circular(x)[1] for x in X]
