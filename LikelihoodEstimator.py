@@ -6,6 +6,8 @@ import torch.nn.functional as F
 
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 
+from rich.progress import track
+
 import fold_globals
 
 
@@ -80,11 +82,6 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
         self.model_name = model_name
 
     def fit(self, X, y=None):
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, clean_up_tokenization_spaces=True)
-        self.model = AutoModelForMaskedLM.from_pretrained(self.model_name)
-
-        self.model.to(fold_globals.DEVICE)
-        self.model.eval()
         """
         Learn something from the data if needed.
         
@@ -120,14 +117,20 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
         """
         n_samples, n_features = X.shape
 
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name, clean_up_tokenization_spaces=True)
+        model = AutoModelForMaskedLM.from_pretrained(self.model_name)
+
+        model.to(fold_globals.DEVICE)
+        model.eval()
+
         results = []
-        for i in range(n_samples):
+        for i in track(range(n_samples)):
             # Collect token likelihood arrays for each language in row i
             token_arrays = []
             for j in range(n_features):
                 text = X.iloc[i, j]
                 # get_token_likelihood returns an array of likelihoods for each token in the text
-                token_likelihoods = get_token_likelihood(self.model, self.tokenizer, text)
+                token_likelihoods = get_token_likelihood(model, tokenizer, text)
                 token_arrays.append(token_likelihoods)
 
             # Find the maximum token length for this sample
