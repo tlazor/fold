@@ -4,65 +4,65 @@ LANGUAGES = ["ar", "bg", "de", "el", "en", "es", "fr", "hi", "ru", "sw", "th", "
 # weeks to reach an integrated score of 3 (Speaking + Listening) on the Interagency Language Roundtable (ILR) scale
 FSI_SCALE = {
     # Category I
-    "DA": 24,  # Danish
-    "NL": 24,  # Dutch
-    "FR": 30,  # French
-    "IT": 24,  # Italian
-    "NO": 24,  # Norwegian
-    "PT": 24,  # Portuguese
-    "RO": 24,  # Romanian
-    "ES": 30,  # Spanish
-    "SV": 24,  # Swedish
+    "da": 24,  # Danish
+    "nl": 24,  # Dutch
+    "fr": 30,  # French
+    "it": 24,  # Italian
+    "no": 24,  # Norwegian
+    "pt": 24,  # Portuguese
+    "ro": 24,  # Romanian
+    "es": 30,  # Spanish
+    "sv": 24,  # Swedish
     # Category II
-    "DE": 36,  # German
-    "HT": 36,  # Haitian Creole
-    "ID": 36,  # Indonesian
-    "MS": 36,  # Malay
-    "SW": 36,  # Swahili
+    "de": 36,  # German
+    "ht": 36,  # Haitian Creole
+    "id": 36,  # Indonesian
+    "ms": 36,  # Malay
+    "sw": 36,  # Swahili
     # Category III
-    "SQ": 44,  # Albanian
-    "AM": 44,  # Amharic
-    "HY": 44,  # Armenian
-    "AZ": 44,  # Azerbaijani
-    "BN": 44,  # Bengali
-    "BG": 44,  # Bulgarian
-    "MY": 44,  # Burmese
-    "CS": 44,  # Czech
-    "FA": 44,  # Dari (Farsi)
-    "ET": 44,  # Estonian
-    "FI": 44,  # Finnish
-    "KA": 44,  # Georgian
-    "EL": 44,  # Greek
-    "HE": 44,  # Hebrew
-    "HI": 44,  # Hindi
-    "HU": 44,  # Hungarian
-    "KK": 44,  # Kazakh
-    "KM": 44,  # Khmer
-    "KU": 44,  # Kurdish
-    "KY": 44,  # Kyrgyz
-    "LO": 44,  # Lao
-    "LV": 44,  # Latvian
-    "LT": 44,  # Lithuanian
-    "MK": 44,  # Macedonian
-    "MN": 44,  # Mongolian
-    "NE": 44,  # Nepali
-    "PL": 44,  # Polish
-    "RU": 44,  # Russian
-    "SR": 44,  # Serbo-Croatian
-    "SK": 44,  # Slovak
-    "SL": 44,  # Slovenian
-    "TG": 44,  # Tajiki
-    "TH": 44,  # Thai
-    "TR": 44,  # Turkish
-    "TK": 44,  # Turkmen
-    "UK": 44,  # Ukrainian
-    "UR": 44,  # Urdu
-    "UZ": 44,  # Uzbek
-    "VI": 44,  # Vietnamese
+    "sq": 44,  # Albanian
+    "am": 44,  # Amharic
+    "hy": 44,  # Armenian
+    "az": 44,  # Azerbaijani
+    "bn": 44,  # Bengali
+    "bg": 44,  # Bulgarian
+    "my": 44,  # Burmese
+    "cs": 44,  # Czech
+    "fa": 44,  # Dari (Farsi)
+    "et": 44,  # Estonian
+    "fi": 44,  # Finnish
+    "ka": 44,  # Georgian
+    "el": 44,  # Greek
+    "he": 44,  # Hebrew
+    "hi": 44,  # Hindi
+    "hu": 44,  # Hungarian
+    "kk": 44,  # Kazakh
+    "km": 44,  # Khmer
+    "ku": 44,  # Kurdish
+    "ky": 44,  # Kyrgyz
+    "lo": 44,  # Lao
+    "lv": 44,  # Latvian
+    "lt": 44,  # Lithuanian
+    "mk": 44,  # Macedonian
+    "mn": 44,  # Mongolian
+    "ne": 44,  # Nepali
+    "pl": 44,  # Polish
+    "ru": 44,  # Russian
+    "sr": 44,  # Serbo-Croatian
+    "sk": 44,  # Slovak
+    "sl": 44,  # Slovenian
+    "tg": 44,  # Tajiki
+    "th": 44,  # Thai
+    "tr": 44,  # Turkish
+    "tk": 44,  # Turkmen
+    "uk": 44,  # Ukrainian
+    "ur": 44,  # Urdu
+    "uz": 44,  # Uzbek
+    "vi": 44,  # Vietnamese
     # Category IV
-    "AR": 88,  # Arabic
-    "YUE": 88,  # Chinese - Cantonese
-    "ZH": 88,  # Chinese - Mandarin
-    "JA": 88,  # Japanese
-    "KO": 88   # Korean
+    "ar": 88,  # Arabic
+    "yue": 88,  # Chinese - Cantonese
+    "zh": 88,  # Chinese - Mandarin
+    "ja": 88,  # Japanese
+    "ko": 88   # Korean
 }
