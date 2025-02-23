@@ -3,8 +3,12 @@ from joblib import Memory
 from sklearn.pipeline import Pipeline
 import torch
 
+import pandas as pd
+
+from PsdEstimator import PsdEstimator
+from PsdNormalizer import PsdNormalizer
 from SpectralTransformer import SpectralTransformer
-from TSVToDataFrame import TSVToDataFrame
+from TsvToDataFrame import TsvToDataFrame
 from LikelihoodEstimator import LikelihoodEstimator
 from OverlapTransformer import OverlapTransformer
 
@@ -58,20 +62,39 @@ if __name__ == "__main__":
     print('Using device:', fold_globals.DEVICE)
 
     pipeline = Pipeline([
-        ("load_tsv", TSVToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
-        ("est_likelihood", LikelihoodEstimator()),
-        ("spectra", SpectralTransformer()),
-        ("overlap", OverlapTransformer()),
-        # ... more pipeline steps (vectorizers, classifiers, etc.) ...
-    ],
-    memory=memory,
-    verbose=True)
+            ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"), nrows=5000)),
+            ("est_likelihood", LikelihoodEstimator()),
+            ("spectra", SpectralTransformer()),
+            # ("est_psd", PsdEstimator()),
+            ("norm_psd", PsdNormalizer()),
+            ("overlap", OverlapTransformer()),
+        ],
+        memory=memory,
+        verbose=True
+    )
 
-    # Running the pipeline
+    # pass None because TSVToDataFrame ignores X and reads from file_path
     output = pipeline.fit_transform(None)  
-    # In this case, we pass None because TSVToDataFrame ignores X and reads from file_path
+    
     print(output.shape)
 
     readable_names = [Language.make(language=lang).display_name() for lang in constants.LANGUAGES]
 
-    show_heatmap(np.average(output, axis=0), readable_names)
+    # show_heatmap(np.average(output, axis=0), readable_names)
+
+    en_index = constants.LANGUAGES.index('en')
+    en_source_distances = np.average(output, axis=0)[en_index]
+    print(en_source_distances)
+
+    df = pd.DataFrame(columns=['lang', 'fsi', 'fold'])
+
+    for lang, fold_distance in zip(constants.LANGUAGES, en_source_distances):
+        if lang == 'en':
+            continue
+        df.loc[len(df)] = [lang, constants.FSI_SCALE[lang], fold_distance]
+    
+    # Calculate correlation between 'column_1' and 'column_2'
+    correlation = df["fsi"].corr(df["fold"])
+
+    # Print correlation value
+    print("Correlation:", correlation)
