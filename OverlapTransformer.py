@@ -23,9 +23,12 @@ def compute_overlaps(freq_spectra):
     # Sum along the frequency dimension (the last axis), resulting in (num_langs, num_langs)
     overlap_matrix = pairwise_mins.sum(axis=-1)
 
-    min_energy = np.min(np.sum(freq_spectra[:, None, :]))
+    # double check normalization
+    for temp in np.sum(freq_spectra, axis=-1):
+        if not np.isclose(temp, 1):
+            print(f"{temp=}")
     
-    return overlap_matrix / min_energy
+    return overlap_matrix
 
 
 class OverlapTransformer(BaseEstimator, TransformerMixin):
@@ -33,14 +36,6 @@ class OverlapTransformer(BaseEstimator, TransformerMixin):
         self.temp = temp
 
     def fit(self, X, y=None):
-        """
-        Learn something from the data if needed.
-        
-        X : array-like or dataframe of shape (n_samples, n_features)
-        y : array-like of shape (n_samples,) or None
-        """
-        # This transformer doesn't learn anything from the data,
-        # so we just return self.
         return self
     
 
