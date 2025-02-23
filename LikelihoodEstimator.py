@@ -12,7 +12,7 @@ import fold_globals
 
 
 # @torch.compile
-def get_token_likelihood(model, tokenizer, text):
+def tokenize(model, tokenizer, text):
     """
     Masks each token (except [CLS] and [SEP]) in the input and returns 
     the likelihood (probability) of the original token under the model.
@@ -48,33 +48,120 @@ def get_token_likelihood(model, tokenizer, text):
     input_ids = encoded["input_ids"].to(device)
     attention_mask = encoded["attention_mask"].to(device)
 
+    return input_ids, attention_mask
+
+def compute_token_likelihoods(model, input_ids, attention_mask, mask_token_id):
+    """
+    Compute the likelihood of each 'normal' token (excluding [CLS] and [SEP])
+    under a masked-language-modeling BERT-like model, but do it in a single 
+    batched forward pass for speed.
+    """
     # Count how many tokens are actually present (excluding padding)
     total_tokens = attention_mask[0].sum().item()  # number of non-pad tokens
-    # For a typical BERT-like model, index 0 is [CLS], and index = total_tokens - 1 is [SEP]
-    num_normal_tokens = max(0, int(total_tokens) - 2)
+    
+    # For a typical BERT, index 0 is [CLS], and index total_tokens-1 is [SEP]
+    num_normal_tokens = max(0, total_tokens - 2)
+    if num_normal_tokens == 0:
+        return np.array([])
 
+    # 1) Create a batch where each row is the same input_ids, except one token is masked.
+    #    We'll replicate 'input_ids' and 'attention_mask' num_normal_tokens times.
+    batch_input_ids = input_ids.repeat(num_normal_tokens, 1)           # shape: (num_normal_tokens, seq_len)
+    batch_attention_mask = attention_mask.repeat(num_normal_tokens, 1) # shape: (num_normal_tokens, seq_len)
+
+    # 2) Mask exactly one token in each row: row i will have token (i+1) masked
+    #    (since we skip [CLS] at index 0).
+    for i in range(num_normal_tokens):
+        token_pos = i + 1  # skip [CLS] at index 0
+        batch_input_ids[i, token_pos] = mask_token_id
+
+    # 3) Single forward pass on the entire batch
+    with torch.no_grad():
+        outputs = model(batch_input_ids, attention_mask=batch_attention_mask)
+        # logits.shape => (num_normal_tokens, seq_len, vocab_size)
+        logits = outputs.logits
+
+    # 4) Extract probabilities for the originally unmasked token in each row
     token_likelihoods = []
+    for i in range(num_normal_tokens):
+        token_pos = i + 1
+        original_token_id = input_ids[0, token_pos]
 
-    # Loop over the 'normal' tokens, skipping [CLS] at index 0 and [SEP] at index (total_tokens-1)
-    for i in range(1, 1 + num_normal_tokens):
-        # Clone the input so we don't overwrite anything
-        masked_input_ids = input_ids.clone()
-        # Mask the i-th token in the sequence
-        masked_input_ids[0, i] = tokenizer.mask_token_id
+        # Softmax over vocab dimension for row i, token_pos
+        probs = F.softmax(logits[i, token_pos], dim=-1)
+        original_token_prob = probs[original_token_id].item()
 
-        with torch.no_grad():
-            outputs = model(masked_input_ids)
-            predictions = outputs.logits  # [batch_size, seq_len, vocab_size]
-
-        # Apply softmax to the i-th token's predictions
-        softmax_probs = F.softmax(predictions[0, i], dim=-1)
-
-        # The "original" token at position i in the unmasked sequence
-        original_token_id = input_ids[0, i]
-        original_token_prob = softmax_probs[original_token_id].item()
         token_likelihoods.append(original_token_prob)
 
     return np.array(token_likelihoods)
+
+
+def compute_token_likelihoods_minibatch(
+    model, 
+    input_ids: torch.Tensor, 
+    attention_mask: torch.Tensor, 
+    mask_token_id, 
+    batch_size: int = 16
+):
+    """
+    Compute likelihood of each 'normal' token (excluding [CLS] and [SEP])
+    under a BERT-like model in minibatches to avoid large memory usage.
+
+    Args:
+        model: A BERT-like language model (with MLM head).
+        input_ids: Tensor of shape [1, seq_len].
+        attention_mask: Tensor of shape [1, seq_len].
+        tokenizer: Tokenizer with a `mask_token_id`.
+        batch_size: Number of tokens to mask/process at once.
+
+    Returns:
+        A 1D NumPy array containing the likelihood (probability) of each
+        normal token under MLM, in sequence order.
+    """
+    # Count how many tokens are actually present (excluding padding)
+    total_tokens = attention_mask[0].sum().item()  # number of non-pad tokens
+    # For a typical BERT-like model, index 0 is [CLS], and index total_tokens-1 is [SEP]
+    num_normal_tokens = max(0, total_tokens - 2)
+
+    # If there's nothing to compute, return an empty array
+    if num_normal_tokens <= 0:
+        return np.array([])
+
+    # We'll store the probabilities for each normal token
+    token_likelihoods = np.zeros(num_normal_tokens, dtype=np.float32)
+
+    # Process in minibatches
+    start_idx = 0
+    while start_idx < num_normal_tokens:
+        end_idx = min(start_idx + batch_size, num_normal_tokens)
+        this_batch_size = end_idx - start_idx
+
+        # 1) Create the chunked batch:
+        #    We'll replicate input_ids and attention_mask `this_batch_size` times
+        batch_input_ids = input_ids.repeat(this_batch_size, 1).clone()
+        batch_attention_mask = attention_mask.repeat(this_batch_size, 1)
+
+        # 2) For each row i in this minibatch, mask the token at position (start_idx + i + 1)
+        for i in range(this_batch_size):
+            token_pos = (start_idx + i) + 1  # skip [CLS] at index 0
+            batch_input_ids[i, token_pos] = mask_token_id
+
+        # 3) Single forward pass for this minibatch
+        with torch.no_grad():
+            logits = model(batch_input_ids, attention_mask=batch_attention_mask).logits
+            # logits.shape => (this_batch_size, seq_len, vocab_size)
+            # logits = outputs.logits
+
+        # 4) Extract the probability of the original token in each row
+        for i in range(this_batch_size):
+            token_pos = (start_idx + i) + 1
+            original_token_id = input_ids[0, token_pos]
+            token_likelihoods[start_idx + i] = F.softmax(logits[i, token_pos], dim=-1)[original_token_id].item()
+
+        # Advance to the next minibatch
+        start_idx = end_idx
+
+    return token_likelihoods
 
 
 class LikelihoodEstimator(BaseEstimator, TransformerMixin):
@@ -130,7 +217,8 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
             for j in range(n_features):
                 text = X.iloc[i, j]
                 # get_token_likelihood returns an array of likelihoods for each token in the text
-                token_likelihoods = get_token_likelihood(model, tokenizer, text)
+                input_ids, attention_mask = tokenize(model, tokenizer, text)
+                token_likelihoods = compute_token_likelihoods_minibatch(model, input_ids, attention_mask, tokenizer.mask_token_id)
                 token_arrays.append(token_likelihoods)
 
             # Find the maximum token length for this sample
