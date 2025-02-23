@@ -2,11 +2,11 @@ import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
-class TSVToDataFrame(BaseEstimator, TransformerMixin):
+class TsvToDataFrame(BaseEstimator, TransformerMixin):
     """
     A custom transformer that reads a TSV (tab-separated) file and returns a pandas DataFrame.
     """
-    def __init__(self, file_path, encoding='utf-8'):
+    def __init__(self, file_path, encoding='utf-8', nrows=None):
         """
         Parameters
         ----------
@@ -17,6 +17,7 @@ class TSVToDataFrame(BaseEstimator, TransformerMixin):
         """
         self.file_path = file_path
         self.encoding = encoding
+        self.nrows = nrows
 
     def fit(self, X=None, y=None):
         """
@@ -28,5 +29,5 @@ class TSVToDataFrame(BaseEstimator, TransformerMixin):
         """
         Reads the TSV file specified by self.file_path and returns it as a pandas DataFrame.
         """
-        df = pd.read_csv(self.file_path, sep='\t', encoding=self.encoding)
+        df = pd.read_csv(self.file_path, sep='\t', encoding=self.encoding, nrows=self.nrows)
         return df
