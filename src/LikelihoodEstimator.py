@@ -50,6 +50,8 @@ def tokenize(model, tokenizer, text):
 
     return input_ids, attention_mask
 
+
+@torch.compile
 def compute_token_likelihoods(model, input_ids, attention_mask, mask_token_id):
     """
     Compute the likelihood of each 'normal' token (excluding [CLS] and [SEP])
@@ -96,6 +98,8 @@ def compute_token_likelihoods(model, input_ids, attention_mask, mask_token_id):
     return np.array(token_likelihoods)
 
 
+
+@torch.compile
 def compute_token_likelihoods_minibatch(
     model, 
     input_ids: torch.Tensor, 

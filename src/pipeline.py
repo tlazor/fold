@@ -64,9 +64,9 @@ if __name__ == "__main__":
     pipeline = Pipeline([
             ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"), nrows=5000)),
             ("est_likelihood", LikelihoodEstimator()),
-            ("spectra", SpectralTransformer()),
-            # ("est_psd", PsdEstimator()),
-            ("norm_psd", PsdNormalizer()),
+            # ("spectra", SpectralTransformer()),
+            ("est_psd", PsdEstimator()),
+            # ("norm_psd", PsdNormalizer()),
             ("overlap", OverlapTransformer()),
         ],
         memory=memory,
@@ -83,9 +83,28 @@ if __name__ == "__main__":
     # show_heatmap(np.average(output, axis=0), readable_names)
 
     en_index = constants.LANGUAGES.index('en')
-    en_source_distances = np.average(output, axis=0)[en_index]
-    print(en_source_distances)
 
+    en_distances = output[:, en_index, :]
+    fig, axes = plt.subplots(5, 3, figsize=(15, 20))
+
+    # Flatten the axes array for easy iteration
+    axes = axes.flatten()
+
+    # Plot distributions
+    for i in range(15):
+        if i == en_index:
+            continue
+        axes[i].hist(en_distances[:, i], bins=100, alpha=0.7, edgecolor='black')
+        axes[i].set_title(f'Distribution {constants.LANGUAGES[i]}')
+        axes[i].set_xlabel('Value')
+        axes[i].set_ylabel('Frequency')
+
+    # Adjust layout
+    plt.tight_layout()
+    plt.show()
+
+
+    en_source_distances = np.median(output, axis=0)[en_index]
     df = pd.DataFrame(columns=['lang', 'fsi', 'fold'])
 
     for lang, fold_distance in zip(constants.LANGUAGES, en_source_distances):
@@ -94,7 +113,7 @@ if __name__ == "__main__":
         df.loc[len(df)] = [lang, constants.FSI_SCALE[lang], fold_distance]
     
     # Calculate correlation between 'column_1' and 'column_2'
-    correlation = df["fsi"].corr(df["fold"])
+    correlation = round(df["fsi"].corr(df["fold"]), 2)
 
     # Print correlation value
     print("Correlation:", correlation)

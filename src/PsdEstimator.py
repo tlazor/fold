@@ -14,4 +14,5 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         # f, Pxx = welch
+        # return [welch(x, average='median')[1] for x in X]
         return [welch(x, fs=1, nperseg=self.nperseg, window=self.window, scaling=self.scaling)[1] for x in X]
