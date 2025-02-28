@@ -1,3 +1,5 @@
+from pandas import DataFrame
+
 # languages in XNLI dataset
 LANGUAGES = ["ar", "bg", "de", "el", "en", "es", "fr", "hi", "ru", "sw", "th", "tr", "ur", "vi", "zh"]
 
@@ -66,3 +68,13 @@ FSI_SCALE = {
     "ja": 88,  # Japanese
     "ko": 88   # Korean
 }
+
+GERMANIC_INTELLIGABILITY = DataFrame({
+    "Listener": ["DA", "DU", "EN", "GE", "SW", "Mean"],
+    "DA": [None, 10.5, 7.9, 16.7, 62.5, 24.4],
+    "DU": [13.3, None, 10.3, 31.1, 13.0, 16.9],
+    "EN": [92.1, 94.0, 27.7, 85.7, 89.6, 90.4],
+    "GE": [47.8, 75.0, 27.7, None, 37.0, 46.9],
+    "SW": [56.7, 10.4, 8.3, 10.0, None, 21.4],
+    "Mean": [52.5, 47.5, 13.6, 35.9, 50.5, 40.0],
+})
