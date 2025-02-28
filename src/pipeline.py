@@ -7,7 +7,9 @@ import pandas as pd
 
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
+from SampleTokens import SampleTokens
 from SpectralTransformer import SpectralTransformer
+from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
 from LikelihoodEstimator import LikelihoodEstimator
 from OverlapTransformer import OverlapTransformer
@@ -52,6 +54,7 @@ if __name__ == "__main__":
     memory = Memory(cachedir, verbose=0)
 
     torch.set_float32_matmul_precision('high')
+    torch._dynamo.config.capture_scalar_outputs = True
 
     if torch.cuda.is_available():
         fold_globals.DEVICE = torch.device('cuda')
@@ -62,12 +65,14 @@ if __name__ == "__main__":
     print('Using device:', fold_globals.DEVICE)
 
     pipeline = Pipeline([
-            ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"), nrows=5000)),
+            ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
+            ("tokenize", TokenTransform()),
+            ("sample", SampleTokens(num_samples=500, minimum_tokens=25, seed=0)),
             ("est_likelihood", LikelihoodEstimator()),
             # ("spectra", SpectralTransformer()),
-            ("est_psd", PsdEstimator()),
+            # ("est_psd", PsdEstimator()),
             # ("norm_psd", PsdNormalizer()),
-            ("overlap", OverlapTransformer()),
+            # ("overlap", OverlapTransformer()),
         ],
         memory=memory,
         verbose=True
@@ -76,7 +81,11 @@ if __name__ == "__main__":
     # pass None because TSVToDataFrame ignores X and reads from file_path
     output = pipeline.fit_transform(None)  
     
-    print(output.shape)
+    print(len(output))
+    print(len(output[0]))
+    print(output[0][0][0].shape)
+    exit()
+    # print(output.shape)
 
     readable_names = [Language.make(language=lang).display_name() for lang in constants.LANGUAGES]
 
