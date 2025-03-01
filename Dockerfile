@@ -26,8 +26,15 @@ RUN sh /uv-installer.sh && rm /uv-installer.sh
 # Ensure the installed binary is on the `PATH`
 ENV PATH="/root/.local/bin/:$PATH"
 
+# Setup python env with uv
+RUN mkdir /fold
+ADD ./download_bert.py /fold
+ADD pyproject.toml /fold
+ADD uv.lock /fold
+ADD .python-version /fold
 
-ADD . /fold
 WORKDIR /fold
 # cache download of bert
 RUN uv run download_bert.py
+
+ADD . /fold
