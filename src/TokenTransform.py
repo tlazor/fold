@@ -1,29 +1,7 @@
 from sklearn.base import BaseEstimator, TransformerMixin
-import numpy as np
-
-import torch
-from torch import nn
-import torch.nn.functional as F
 
 from transformers import AutoTokenizer
 
-
-def tokenize(
-    tokenizer, 
-    text: str,
-    max_tokens:int = 256
-) -> list:
-    
-    encoded = tokenizer(
-        text,
-        max_length=max_tokens,
-        padding="max_length",
-        truncation=True,
-        return_tensors="pt",
-        add_special_tokens=True
-    )
-
-    return encoded["input_ids"], encoded["attention_mask"]
 
 class TokenTransform(BaseEstimator, TransformerMixin):
     def __init__(self, model_name='bert-base-multilingual-cased'):
@@ -44,6 +22,22 @@ class TokenTransform(BaseEstimator, TransformerMixin):
     def transform(self, X):
         tokenizer = AutoTokenizer.from_pretrained(self.model_name, clean_up_tokenization_spaces=True)
 
+        def tokenize(
+            text: str,
+            max_tokens:int = 256
+        ) -> list:
+            
+            encoded = tokenizer(
+                text,
+                max_length=max_tokens,
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+                add_special_tokens=True
+            )
+
+            return encoded["input_ids"], encoded["attention_mask"]
+
         n_langs, n_features = X.shape
 
         results = []
@@ -52,20 +46,7 @@ class TokenTransform(BaseEstimator, TransformerMixin):
             token_arrays = []
             for j in range(n_features):
                 text = X.iloc[i, j]
-                # get_token_likelihood returns an array of likelihoods for each token in the text
-                # input_ids, attention_mask = tokenize(model, tokenizer, text)
-                # token_likelihoods = compute_token_likelihoods_minibatch(model, input_ids, attention_mask, tokenizer.mask_token_id)
-                token_arrays.append(tokenize(tokenizer, text))
-
-            # Find the maximum token length for this sample
-            # max_length = max(len(arr) for arr in token_arrays)
-
-            # # Create a 2D array for row i: shape = (n_features, max_length)
-            # padded_arr = np.zeros((n_features, max_length), dtype=float)
-
-            # # Pad each language's likelihood array
-            # for j, arr in enumerate(token_arrays):
-            #     padded_arr[j, :len(arr)] = arr
+                token_arrays.append(tokenize(text))
 
             # Store the padded 2D array in the results list
             results.append(token_arrays)
