@@ -64,17 +64,20 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device('cpu')
     print('Using device:', fold_globals.DEVICE)
 
+    from transformers import AutoTokenizer
+    mask_token_id = AutoTokenizer.from_pretrained("bert-base-multilingual-cased", clean_up_tokenization_spaces=True).mask_token_id
+
     pipeline = Pipeline([
             ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
             ("tokenize", TokenTransform()),
-            ("sample", SampleTokens(num_samples=500, minimum_tokens=25, seed=0)),
-            ("est_likelihood", LikelihoodEstimator()),
+            ("sample", SampleTokens(num_samples=500, minimum_tokens=20, seed=0)),
+            ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
             # ("spectra", SpectralTransformer()),
-            # ("est_psd", PsdEstimator()),
-            # ("norm_psd", PsdNormalizer()),
-            # ("overlap", OverlapTransformer()),
+            ("est_psd", PsdEstimator()),
+            ("norm_psd", PsdNormalizer()),
+            ("overlap", OverlapTransformer()),
         ],
-        memory=memory,
+        # memory=memory,
         verbose=True
     )
 
@@ -83,9 +86,6 @@ if __name__ == "__main__":
     
     print(len(output))
     print(len(output[0]))
-    print(output[0][0][0].shape)
-    exit()
-    # print(output.shape)
 
     readable_names = [Language.make(language=lang).display_name() for lang in constants.LANGUAGES]
 
