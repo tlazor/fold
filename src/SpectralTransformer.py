@@ -29,20 +29,19 @@ def calculate_power_spectrum(arr, axis=1):
 
 
 class SpectralTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, temp='fourier'):
+    def __init__(self, temp="fourier"):
         self.temp = temp
 
     def fit(self, X, y=None):
         """
         Learn something from the data if needed.
-        
+
         X : array-like or dataframe of shape (n_samples, n_features)
         y : array-like of shape (n_samples,) or None
         """
         # This transformer doesn't learn anything from the data,
         # so we just return self.
         return self
-    
 
     def transform(self, X):
         # max_length = 0

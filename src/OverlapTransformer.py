@@ -19,7 +19,7 @@ def compute_overlaps(freq_spectra):
     # Broadcast the arrays so we can take the elementwise minimum of every pair (i, j)
     # Resulting shape: (num_langs, num_langs, freq_bins)
     pairwise_mins = np.minimum(freq_spectra[:, None, :], freq_spectra[None, :, :])
-    
+
     # Sum along the frequency dimension (the last axis), resulting in (num_langs, num_langs)
     overlap_matrix = pairwise_mins.sum(axis=-1)
 
@@ -27,17 +27,16 @@ def compute_overlaps(freq_spectra):
     for temp in np.sum(freq_spectra, axis=-1):
         if not np.isclose(temp, 1):
             print(f"{temp=}")
-    
+
     return overlap_matrix
 
 
 class OverlapTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, temp='fourier'):
+    def __init__(self, temp="fourier"):
         self.temp = temp
 
     def fit(self, X, y=None):
         return self
-    
 
     def transform(self, X):
         # samples x langs x langs

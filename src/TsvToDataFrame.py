@@ -6,7 +6,8 @@ class TsvToDataFrame(BaseEstimator, TransformerMixin):
     """
     A custom transformer that reads a TSV (tab-separated) file and returns a pandas DataFrame.
     """
-    def __init__(self, file_path, encoding='utf-8', nrows=None):
+
+    def __init__(self, file_path, encoding="utf-8", nrows=None):
         """
         Parameters
         ----------
@@ -29,5 +30,7 @@ class TsvToDataFrame(BaseEstimator, TransformerMixin):
         """
         Reads the TSV file specified by self.file_path and returns it as a pandas DataFrame.
         """
-        df = pd.read_csv(self.file_path, sep='\t', encoding=self.encoding, nrows=self.nrows)
+        df = pd.read_csv(
+            self.file_path, sep="\t", encoding=self.encoding, nrows=self.nrows
+        )
         return df
