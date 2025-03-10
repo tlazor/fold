@@ -1,3 +1,4 @@
+from pathlib import Path
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from transformers import AutoTokenizer
@@ -22,6 +23,12 @@ class TokenTransform(BaseEstimator, TransformerMixin):
     def transform(self, X):
         tokenizer = AutoTokenizer.from_pretrained(self.model_name, clean_up_tokenization_spaces=True)
 
+        from joblib import Memory
+        cachedir = Path(".cache/joblib")
+        memory = Memory(cachedir, verbose=0)
+
+
+        @memory.cache
         def tokenize(
             text: str,
             max_tokens:int = 256
@@ -32,7 +39,7 @@ class TokenTransform(BaseEstimator, TransformerMixin):
                 max_length=max_tokens,
                 padding="max_length",
                 truncation=True,
-                return_tensors="pt",
+                return_tensors="np",
                 add_special_tokens=True
             )
 
@@ -48,7 +55,6 @@ class TokenTransform(BaseEstimator, TransformerMixin):
                 text = X.iloc[i, j]
                 token_arrays.append(tokenize(text))
 
-            # Store the padded 2D array in the results list
             results.append(token_arrays)
 
         return results

@@ -14,7 +14,7 @@ import fold_globals
 
 from joblib import Memory
 cachedir = Path(".cache/joblib")
-memory = Memory(cachedir, verbose=1)
+memory = Memory(cachedir, verbose=0)
 
 
 @memory.cache(ignore=["model", "chunk_size"])
@@ -172,11 +172,11 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
                 # print(f"{input_ids=}")
                 # print(f"{attention_mask=}")
                 # exit()
-                token_likelihoods = get_token_likelihood_vec(model, input_ids.numpy(), attention_mask.numpy(), self.mask_token_id)
+                token_likelihoods = get_token_likelihood_vec(model, input_ids, attention_mask, self.mask_token_id)
                 token_arrays.append(token_likelihoods)
 
                 max_len = max(max_len, token_likelihoods.shape[0])
 
-            results.append(torch.vstack([torch.nn.functional.pad(t, (0, max_len-t.shape[0])) for t in token_arrays]))
+            results.append(torch.vstack([torch.nn.functional.pad(t, (0, max_len-t.shape[0])) for t in token_arrays]).numpy())
 
         return results
