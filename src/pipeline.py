@@ -87,40 +87,60 @@ def analyze_output(output):
         plt.tight_layout()
         plt.show()
 
+    xnli_df = pd.DataFrame(np.median(output, axis=0), index=constants.LANGUAGES, columns=constants.LANGUAGES)
+    
+    all_labels = constants.GERMANIC_INTELLIGABILITY.index.union(constants.ROMANCE_INTELLIGABILITY.index)
+    
+    # 2. Reindex each to the same shape
+    df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
+    df2_re = constants.ROMANCE_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
+
+    ful_mut_int = df1_re.combine_first(df2_re)
+
+    labels_a = xnli_df.index
+    labels_b = ful_mut_int.index
+    # 1. Identify overlapping labels:
+    intersection = list(set(labels_a).intersection(set(labels_b)))
+    intersection.sort()  # sort for consistent ordering
+
+    # 2. Subset and reorder each distance matrix
+    df_a_sub = xnli_df.loc[intersection, intersection]
+    df_b_sub = ful_mut_int.loc[intersection, intersection]
+
+    series_a_sub = df_a_sub.values.flatten()
+    series_b_sub = df_b_sub.values.flatten()
+
+    df_mut_int = pd.DataFrame({"fold": series_a_sub, "mut_int": series_b_sub})
+
     en_source_distances = np.median(output, axis=0)[en_index]
-    df = pd.DataFrame(columns=["lang", "fsi", "fold"])
-    # df = pd.DataFrame(columns=['lang', 'fsi', 'fold', 'mut_int'])
+    df_fsi = pd.DataFrame(columns=["lang", "fsi", "fold"])
 
     for lang, fold_distance in zip(constants.LANGUAGES, en_source_distances):
         if lang == "en":
             continue
 
-        #     mut_int = np.nan
-        #     for mutual_intelligibilty in [constants.GERMANIC_INTELLIGABILITY, constants.ROMANCE_INTELLIGABILITY]:
-        #         if lang in mutual_intelligibilty.columns:
-        #             mut_int = mutual_intelligibilty.loc[lang, "en"]
+        df_fsi.loc[len(df_fsi)] = [lang, constants.FSI_SCALE[lang], fold_distance]
 
-        df.loc[len(df)] = [lang, constants.FSI_SCALE[lang], fold_distance]
+    df_fsi.set_index("lang", inplace=True)
 
-    df.set_index("lang", inplace=True)
-    # print(df)
-    # Print correlation value
-    for corr_name, corr_func in [("pearson", pearsonr), ("spearman", spearmanr)]:
-        corr = df.corr(method=lambda x, y: corr_func(x, y)[0])
-        pvalues = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(
-            len(df.columns)
-        )
+    for df in [df_mut_int, df_fsi]:
+        # Print correlation value
+        for corr_name, corr_func in [("pearson", pearsonr), ("spearman", spearmanr)]:
+            corr = df.corr(method=lambda x, y: corr_func(x, y)[0])
+            pvalues = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(
+                len(df.columns)
+            )
 
-        combined_df = pd.DataFrame("", index=corr.index, columns=corr.columns)
+            combined_df = pd.DataFrame("", index=corr.index, columns=corr.columns)
 
-        # Pair each correlation coefficient with its p-value in string form
-        for row in corr.index:
-            for col in corr.columns:
-                coef = corr.loc[row, col]
-                pval = pvalues.loc[row, col]
-                combined_df.loc[row, col] = f"{coef:.2f} (p={pval:.2f})"
+            # Pair each correlation coefficient with its p-value in string form
+            for row in corr.index:
+                for col in corr.columns:
+                    coef = corr.loc[row, col]
+                    pval = pvalues.loc[row, col]
+                    combined_df.loc[row, col] = f"{coef:.2f} (p={pval:.2f})"
 
-        print(f"{corr_name} correlation:\n{combined_df}")
+            print(f"{corr_name} correlation:\n{combined_df}")
 
 
 if __name__ == "__main__":
@@ -147,7 +167,7 @@ if __name__ == "__main__":
     likelihood_pipeline_components = [
             ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
             ("tokenize", TokenTransform()),
-            ("sample", SampleTokens(num_samples=500, minimum_tokens=20, seed=0)),
+            ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
             ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
             # ("spectra", SpectralTransformer()),
             ("est_psd", PsdEstimator()),
