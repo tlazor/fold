@@ -85,6 +85,8 @@ FSI_SCALE = {
     "ko": 88,  # Korean
 }
 
+# Mutual Intelligibility results from
+# https://www.tandfonline.com/doi/full/10.1080/14790718.2017.1350185
 GERMANIC_INTELLIGABILITY = DataFrame(
     {
         "da": [None, 10.5, 7.9, 16.7, 62.5, 24.4],
@@ -107,4 +109,17 @@ ROMANCE_INTELLIGABILITY = DataFrame(
         "Total": [22.6, 36.6, 47.2, 44.9, 32.2, 36.7],
     },
     index=["fr", "it", "pt", "ro", "es", "Total"],
+)
+
+SLAVIC_INTELLIGABILITY = DataFrame(
+    {
+        "bg": [None, 19.7, 13.4, 13.7, 10.1, 18.0, 15.0],
+        "hr": [29.1, None, 19.4, 14.4, 25.9, 79.4, 33.6],
+        "cs": [10.6, 18.1, None, 26.6, 95.0, 18.0, 33.7],
+        "po": [7.1, 9.5, 35.4, None, 50.7, 12.8, 23.1],
+        "sk": [16.0, 23.0, 92.7, 40.7, None, 18.8, 21.7],
+        "sl": [20.6, 43.7, 15.7, 13.4, 15.1, None, 27.6],
+        "Total": [16.7, 22.8, 35.3, 21.8, 39.4, 29.4, 24.6],
+    },
+    index=["bg", "hr", "cs", "po", "sk", "sl", "Total"],
 )

@@ -94,8 +94,12 @@ def calculate_correlations(dataframes):
 
 
 def get_full_mut_int():
-    all_labels = constants.GERMANIC_INTELLIGABILITY.index.union(
-        constants.ROMANCE_INTELLIGABILITY.index
+    all_labels = (
+        constants.GERMANIC_INTELLIGABILITY.index.union(
+            constants.ROMANCE_INTELLIGABILITY.index
+        )
+        .union(constants.SLAVIC_INTELLIGABILITY.index)
+        .drop(["Mean", "Total"])
     )
 
     df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(
@@ -104,8 +108,12 @@ def get_full_mut_int():
     df2_re = constants.ROMANCE_INTELLIGABILITY.reindex(
         index=all_labels, columns=all_labels
     )
+    df3_re = constants.SLAVIC_INTELLIGABILITY.reindex(
+        index=all_labels, columns=all_labels
+    )
 
-    ful_mut_int = df1_re.combine_first(df2_re)
+    ful_mut_int = df1_re.combine_first(df2_re).combine_first(df3_re)
+    # print(ful_mut_int)
     return ful_mut_int
 
 
@@ -178,7 +186,7 @@ def analyze_output(output):
         "fsi": df_fsi,
     }
     results_long = calculate_correlations(dataframes)
-    print(results_long)
+    print(results_long.to_string(index=False))
 
 
 if __name__ == "__main__":
