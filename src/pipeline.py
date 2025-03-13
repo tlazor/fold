@@ -89,13 +89,7 @@ def analyze_output(output):
 
     xnli_df = pd.DataFrame(np.median(output, axis=0), index=constants.LANGUAGES, columns=constants.LANGUAGES)
     
-    all_labels = constants.GERMANIC_INTELLIGABILITY.index.union(constants.ROMANCE_INTELLIGABILITY.index)
-    
-    # 2. Reindex each to the same shape
-    df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
-    df2_re = constants.ROMANCE_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
-
-    ful_mut_int = df1_re.combine_first(df2_re)
+    ful_mut_int = get_full_mut_int()
 
     labels_a = xnli_df.index
     labels_b = ful_mut_int.index
@@ -123,24 +117,44 @@ def analyze_output(output):
 
     df_fsi.set_index("lang", inplace=True)
 
-    for df in [df_mut_int, df_fsi]:
-        # Print correlation value
+
+    dataframes = {
+        "mut_int": df_mut_int,
+        "fsi": df_fsi,
+    }
+    all_correlations = []
+
+    for df_name, df in dataframes.items():
         for corr_name, corr_func in [("pearson", pearsonr), ("spearman", spearmanr)]:
             corr = df.corr(method=lambda x, y: corr_func(x, y)[0])
-            pvalues = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(
-                len(df.columns)
-            )
+            pvals = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(len(df.columns))
 
-            combined_df = pd.DataFrame("", index=corr.index, columns=corr.columns)
-
-            # Pair each correlation coefficient with its p-value in string form
+            # Flatten into long form
             for row in corr.index:
                 for col in corr.columns:
-                    coef = corr.loc[row, col]
-                    pval = pvalues.loc[row, col]
-                    combined_df.loc[row, col] = f"{coef:.2f} (p={pval:.2f})"
+                    # Skip diagonal or collect it as well
+                    if row != col:
+                        all_correlations.append({
+                            "df_name": df_name,
+                            "corr_type": corr_name,
+                            "var1": row,
+                            "var2": col,
+                            "coef": corr.loc[row, col],
+                            "pval": pvals.loc[row, col]
+                        })
 
-            print(f"{corr_name} correlation:\n{combined_df}")
+    # Convert to a single DataFrame
+    results_long = pd.DataFrame(all_correlations)
+    print(results_long)
+
+def get_full_mut_int():
+    all_labels = constants.GERMANIC_INTELLIGABILITY.index.union(constants.ROMANCE_INTELLIGABILITY.index)
+
+    df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
+    df2_re = constants.ROMANCE_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
+
+    ful_mut_int = df1_re.combine_first(df2_re)
+    return ful_mut_int
 
 
 if __name__ == "__main__":
