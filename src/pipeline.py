@@ -13,7 +13,12 @@ from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
 from LikelihoodEstimator import LikelihoodEstimator
-from MetricTransformer import MetricTransformer, compute_overlaps, kl_divergence_matrix, mae_matrix
+from MetricTransformer import (
+    MetricTransformer,
+    compute_overlaps,
+    kl_divergence_matrix,
+    mae_matrix,
+)
 
 import fold_globals
 import constants
@@ -57,6 +62,53 @@ def show_heatmap(overlap_matrix, lang_labels=None):
     plt.show()
 
 
+def calculate_correlations(dataframes):
+    all_correlations = []
+
+    for df_name, df in dataframes.items():
+        for corr_name, corr_func in [("pearson", pearsonr), ("spearman", spearmanr)]:
+            corr = df.corr(method=lambda x, y: corr_func(x, y)[0])
+            pvals = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(
+                len(df.columns)
+            )
+
+            # Flatten into long form
+            for row in corr.index:
+                for col in corr.columns:
+                    # Skip diagonal or collect it as well
+                    if row != col:
+                        all_correlations.append(
+                            {
+                                "df_name": df_name,
+                                "corr_type": corr_name,
+                                "var1": row,
+                                "var2": col,
+                                "coef": corr.loc[row, col],
+                                "pval": pvals.loc[row, col],
+                            }
+                        )
+
+    # Convert to a single DataFrame
+    results_long = pd.DataFrame(all_correlations)
+    return results_long
+
+
+def get_full_mut_int():
+    all_labels = constants.GERMANIC_INTELLIGABILITY.index.union(
+        constants.ROMANCE_INTELLIGABILITY.index
+    )
+
+    df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(
+        index=all_labels, columns=all_labels
+    )
+    df2_re = constants.ROMANCE_INTELLIGABILITY.reindex(
+        index=all_labels, columns=all_labels
+    )
+
+    ful_mut_int = df1_re.combine_first(df2_re)
+    return ful_mut_int
+
+
 def analyze_output(output):
     readable_names = [
         Language.make(language=lang).display_name() for lang in constants.LANGUAGES
@@ -87,8 +139,12 @@ def analyze_output(output):
         plt.tight_layout()
         plt.show()
 
-    xnli_df = pd.DataFrame(np.median(output, axis=0), index=constants.LANGUAGES, columns=constants.LANGUAGES)
-    
+    xnli_df = pd.DataFrame(
+        np.median(output, axis=0),
+        index=constants.LANGUAGES,
+        columns=constants.LANGUAGES,
+    )
+
     ful_mut_int = get_full_mut_int()
 
     labels_a = xnli_df.index
@@ -117,44 +173,12 @@ def analyze_output(output):
 
     df_fsi.set_index("lang", inplace=True)
 
-
     dataframes = {
         "mut_int": df_mut_int,
         "fsi": df_fsi,
     }
-    all_correlations = []
-
-    for df_name, df in dataframes.items():
-        for corr_name, corr_func in [("pearson", pearsonr), ("spearman", spearmanr)]:
-            corr = df.corr(method=lambda x, y: corr_func(x, y)[0])
-            pvals = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(len(df.columns))
-
-            # Flatten into long form
-            for row in corr.index:
-                for col in corr.columns:
-                    # Skip diagonal or collect it as well
-                    if row != col:
-                        all_correlations.append({
-                            "df_name": df_name,
-                            "corr_type": corr_name,
-                            "var1": row,
-                            "var2": col,
-                            "coef": corr.loc[row, col],
-                            "pval": pvals.loc[row, col]
-                        })
-
-    # Convert to a single DataFrame
-    results_long = pd.DataFrame(all_correlations)
+    results_long = calculate_correlations(dataframes)
     print(results_long)
-
-def get_full_mut_int():
-    all_labels = constants.GERMANIC_INTELLIGABILITY.index.union(constants.ROMANCE_INTELLIGABILITY.index)
-
-    df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
-    df2_re = constants.ROMANCE_INTELLIGABILITY.reindex(index=all_labels, columns=all_labels)
-
-    ful_mut_int = df1_re.combine_first(df2_re)
-    return ful_mut_int
 
 
 if __name__ == "__main__":
@@ -179,16 +203,15 @@ if __name__ == "__main__":
     ).mask_token_id
 
     likelihood_pipeline_components = [
-            ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
-            ("tokenize", TokenTransform()),
-            ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
-            ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
-            # ("spectra", SpectralTransformer()),
-            ("est_psd", PsdEstimator()),
-            ("norm_psd", PsdNormalizer()),
-        ]
-    
-    
+        ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
+        ("tokenize", TokenTransform()),
+        ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
+        ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
+        # ("spectra", SpectralTransformer()),
+        ("est_psd", PsdEstimator()),
+        ("norm_psd", PsdNormalizer()),
+    ]
+
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
     for fun in metric_funs:
         metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
