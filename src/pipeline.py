@@ -186,7 +186,7 @@ def analyze_output(output):
         "fsi": df_fsi,
     }
     results_long = calculate_correlations(dataframes)
-    print(results_long.to_string(index=False))
+    print(results_long.to_string(index=False, float_format="{:.3f}".format))
 
 
 if __name__ == "__main__":
