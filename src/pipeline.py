@@ -210,14 +210,22 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
+    straight_spectra = False
     likelihood_pipeline_components = [
         ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
         ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
-        # ("spectra", SpectralTransformer()),
-        ("est_psd", PsdEstimator()),
-        ("norm_psd", PsdNormalizer()),
+        *(
+            # if is_spectra is True, we add just the SpectralTransformer
+            [("spectra", SpectralTransformer())]
+            if straight_spectra
+            # otherwise, we add the two PSD-related transforms
+            else [
+                ("est_psd", PsdEstimator()),
+                ("norm_psd", PsdNormalizer())
+            ]
+        )
     ]
 
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
