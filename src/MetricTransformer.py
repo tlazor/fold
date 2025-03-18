@@ -24,9 +24,9 @@ def compute_overlaps(freq_spectra):
     overlap_matrix = pairwise_mins.sum(axis=-1)
 
     # double check normalization
-    for temp in np.sum(freq_spectra, axis=-1):
-        if not np.isclose(temp, 1):
-            print(f"{temp=}")
+    # for temp in np.sum(freq_spectra, axis=-1):
+    #     if not np.isclose(temp, 1):
+    #         print(f"{temp=}")
 
     return overlap_matrix
 
