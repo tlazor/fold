@@ -4,7 +4,6 @@ from joblib import Memory
 from sklearn.pipeline import Pipeline
 import torch
 
-from DimSelector import DimSelector
 from EmbedTransformer import EmbedTransformer
 from MetricTransformer import MetricTransformer, compute_overlaps, kl_divergence_matrix, mae_matrix
 from PsdEstimator import PsdEstimator
@@ -39,7 +38,7 @@ if __name__ == "__main__":
     ).mask_token_id
 
     use_spectra = True
-    straight_spectra = False
+    straight_spectra = True
     likelihood_pipeline_components = [
         ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
@@ -65,7 +64,7 @@ if __name__ == "__main__":
         pipeline = Pipeline(
             likelihood_pipeline_components + (spectra_component if use_spectra else []) + [metric_component],
             memory=pipeline_memory,
-            verbose=True,
+            verbose=False,
         )
 
         # pass None because TSVToDataFrame ignores X and reads from file_path
