@@ -72,7 +72,7 @@ if __name__ == "__main__":
             + (spectra_component if use_spectra else [])
             + [metric_component],
             memory=pipeline_memory,
-            verbose=True,
+            verbose=False,
         )
 
         # pass None because TSVToDataFrame ignores X and reads from file_path

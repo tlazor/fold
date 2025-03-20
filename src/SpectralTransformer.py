@@ -2,72 +2,56 @@ from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
 
 
-def circular(arr):
-    new_shape = (
-        (arr.shape[0], arr.shape[1] // 2)
-        if len(arr.shape) == 2
-        else (arr.shape[0], arr.shape[1] // 2, arr.shape[2])
-    )
-    fft_result_avg = np.zeros(new_shape, "complex128")
-    power_spectrum_avg = np.zeros(new_shape)
-    for i in range(1, arr.shape[1]):
-        fft_result, power_spectrum = calculate_power_spectrum(np.roll(arr, i, axis=1))
-        fft_result_avg += fft_result / arr.shape[1]
-        power_spectrum_avg += power_spectrum / arr.shape[1]
-
-    return fft_result_avg, power_spectrum_avg
-
-
-def circular_optimized(arr):
+def broadcast_vector_to_axis(vec, reference_array, axis):
     """
-    Returns (fft_result_avg, power_spectrum_avg) which match
-    the original function's looped version over i in [1..N-1],
-    but computed in O(N) rather than O(N^2).
+    vec: 1D array of length N.
+    reference_array: the array we want to multiply with.
+    axis: the axis along which vec should align.
+
+    Returns a reshaped version of 'vec' that broadcasts
+    over all other axes of 'reference_array'.
     """
-    # We'll assume arr has shape (B, N) or (B, N, C).
-    # We always FFT along axis=1 and keep only half the frequencies.
-    N = arr.shape[1]
-    
-    # --- 1) Do one FFT on the original array along axis=1
-    # Just so we can replicate the same shape output,
-    # we will do the "full" FFT first (N frequencies along axis=1).
-    fft_full = np.fft.fft(arr, axis=1)
-    
-    # --- 2) Build the multiplier that implements summation over shifts
-    # For freq=0 => multiplier = (N-1)/N
-    # For freq>0 => multiplier = -1/N
-    shift_factors = np.full((N,), -1/N, dtype=fft_full.dtype)
-    shift_factors[0] = (N-1)/N
-    
-    # shape handling: we want to multiply each row of fft_full by shift_factors
-    # along axis=1.  We'll reshape shift_factors to broadcast if needed
-    while len(shift_factors.shape) < len(fft_full.shape):
-        shift_factors = shift_factors[np.newaxis, ...]
-    
-    # multiply to get the "averaged" complex FFT
+    shape = [1] * reference_array.ndim  # e.g. [1,1,1,...]
+    shape[axis] = vec.shape[0]  # put length=N at the desired axis
+    return vec.reshape(shape)
+
+
+def circular_optimized(arr, axis=1):
+    """
+    Computes the average of the shifted FFT results (in a closed-form way),
+    and then the power spectrum of that average. Equivalent to:
+
+       for i in range(1, N):
+           fft_i, pow_i = calculate_power_spectrum(np.roll(arr, i, axis=axis))
+           fft_result_avg += fft_i / N
+           power_spectrum_avg += pow_i / N
+
+    except done via a single FFT + complex weighting.
+    """
+    N = arr.shape[axis]
+
+    # 1) Do one FFT on the original data
+    fft_full = np.fft.fft(arr, axis=axis)
+
+    # 2) Build shift_factors for frequencies:
+    #    freq=0 -> (N-1)/N;  freq>0 -> -1/N
+    shift_factors = np.full(N, -1 / N, dtype=fft_full.dtype)
+    shift_factors[0] = (N - 1) / N
+
+    # 3) Reshape so that axis=1 in the final multiplication
+    shift_factors = broadcast_vector_to_axis(shift_factors, fft_full, axis)
+
+    # 4) Multiply => the “averaged” FFT across all shifts
     fft_avg_full = fft_full * shift_factors
-    
-    # --- 3) Truncate to the first half of frequencies
+
+    # 5) Keep first half frequencies (to replicate your original shape/truncation)
     half = N // 2
-    fft_result_avg = fft_avg_full[..., :half]
-    
-    # --- 4) Compute the power spectrum of this averaged FFT
-    power_spectrum_avg = np.abs(fft_result_avg)**2
-    
+    fft_result_avg = np.take(fft_avg_full, indices=range(0, half), axis=axis)
+
+    # 6) Compute the power spectrum of that average
+    power_spectrum_avg = np.abs(fft_result_avg) ** 2
+
     return fft_result_avg, power_spectrum_avg
-
-def calculate_power_spectrum(arr, axis=1):
-    # Perform Fourier Transform along the specified axis
-    fft_result = np.fft.fft(arr, axis=axis)
-
-    # FT of real valued signals are conjugate symmetric
-    nyquist = fft_result.shape[1] // 2
-    fft_result = fft_result[:, :nyquist]
-
-    # Calculate the power spectrum (square of the magnitude of the FFT result)
-    power_spectrum = np.abs(fft_result) ** 2
-
-    return fft_result, power_spectrum
 
 
 class SpectralTransformer(BaseEstimator, TransformerMixin):
