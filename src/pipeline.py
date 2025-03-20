@@ -210,13 +210,16 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
+    use_spectra = True
     straight_spectra = False
     likelihood_pipeline_components = [
         ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
         ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
-        *(
+    ]
+
+    spectra_component =  [*(
             # if is_spectra is True, we add just the SpectralTransformer
             [("spectra", SpectralTransformer())]
             if straight_spectra
@@ -225,15 +228,14 @@ if __name__ == "__main__":
                 ("est_psd", PsdEstimator()),
                 ("norm_psd", PsdNormalizer())
             ]
-        )
-    ]
+        )]
 
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
     for fun in metric_funs:
         metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
         metric_component = (metric_transformer.name, metric_transformer)
         pipeline = Pipeline(
-            likelihood_pipeline_components + [metric_component],
+            likelihood_pipeline_components + (spectra_component if use_spectra else []) + [metric_component],
             memory=pipeline_memory,
             verbose=False,
         )
