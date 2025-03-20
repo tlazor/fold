@@ -18,6 +18,44 @@ def circular(arr):
     return fft_result_avg, power_spectrum_avg
 
 
+def circular_optimized(arr):
+    """
+    Returns (fft_result_avg, power_spectrum_avg) which match
+    the original function's looped version over i in [1..N-1],
+    but computed in O(N) rather than O(N^2).
+    """
+    # We'll assume arr has shape (B, N) or (B, N, C).
+    # We always FFT along axis=1 and keep only half the frequencies.
+    N = arr.shape[1]
+    
+    # --- 1) Do one FFT on the original array along axis=1
+    # Just so we can replicate the same shape output,
+    # we will do the "full" FFT first (N frequencies along axis=1).
+    fft_full = np.fft.fft(arr, axis=1)
+    
+    # --- 2) Build the multiplier that implements summation over shifts
+    # For freq=0 => multiplier = (N-1)/N
+    # For freq>0 => multiplier = -1/N
+    shift_factors = np.full((N,), -1/N, dtype=fft_full.dtype)
+    shift_factors[0] = (N-1)/N
+    
+    # shape handling: we want to multiply each row of fft_full by shift_factors
+    # along axis=1.  We'll reshape shift_factors to broadcast if needed
+    while len(shift_factors.shape) < len(fft_full.shape):
+        shift_factors = shift_factors[np.newaxis, ...]
+    
+    # multiply to get the "averaged" complex FFT
+    fft_avg_full = fft_full * shift_factors
+    
+    # --- 3) Truncate to the first half of frequencies
+    half = N // 2
+    fft_result_avg = fft_avg_full[..., :half]
+    
+    # --- 4) Compute the power spectrum of this averaged FFT
+    power_spectrum_avg = np.abs(fft_result_avg)**2
+    
+    return fft_result_avg, power_spectrum_avg
+
 def calculate_power_spectrum(arr, axis=1):
     # Perform Fourier Transform along the specified axis
     fft_result = np.fft.fft(arr, axis=axis)
@@ -53,4 +91,4 @@ class SpectralTransformer(BaseEstimator, TransformerMixin):
         #     num_langs, sample_len = x.shape
         #     max_length = max(max_length, sample_len)
 
-        return [circular(x)[1] for x in X]
+        return [circular_optimized(x)[1] for x in X]
