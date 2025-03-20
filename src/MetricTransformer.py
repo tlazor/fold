@@ -29,7 +29,7 @@ def compute_overlaps(freq_spectra):
         # overlap(i,j)=embed_dim1​d=1∑embed_dim​(f=1∑num_freq_bins​min(freq_spectra[i,f,d],freq_spectra[j,f,d]))
         num_lang, num_freq, embed_dim = freq_spectra.shape
         overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
-        
+
         for i in range(num_lang):
             for j in range(num_lang):
                 # min_spec has shape (num_freq, embed_dim)
@@ -63,7 +63,7 @@ def kl_divergence_matrix(P, epsilon=1e-15):
         alpha = np.sum(P * LP, axis=1)  # shape [L]
 
         # 4) beta[i, j] = sum_x p[i, x] * log(p[j, x])
-        beta = P.dot(LP.T)             # shape [L, L]
+        beta = P.dot(LP.T)  # shape [L, L]
 
         # 5) KL[i, j] = alpha[i] - beta[i, j]
         KL = alpha[:, np.newaxis] - beta  # shape [L, L]
@@ -73,7 +73,7 @@ def kl_divergence_matrix(P, epsilon=1e-15):
         # --------------------------------------------
         # 3D case: (num_langs, num_tokens, num_samples)
         # --------------------------------------------
-        # Suppose P[i, t, :] represents the distribution 
+        # Suppose P[i, t, :] represents the distribution
         # for language i at token t across 'num_samples'.
         L, T, S = P.shape
 
@@ -89,7 +89,7 @@ def kl_divergence_matrix(P, epsilon=1e-15):
         # 4) beta[i, j, t] = sum_x p[i, t, x] * log(p[j, t, x])
         # We'll use einsum to handle pairwise i, j at each token.
         # shape becomes (L, L, T)
-        beta = np.einsum('lts,Lts->lLt', P_norm, LP)  
+        beta = np.einsum("lts,Lts->lLt", P_norm, LP)
 
         # 5) KL[i, j, t] = alpha[i, t] - beta[i, j, t]
         KL_per_token = alpha[:, None, :] - beta  # shape (L, L, T)
@@ -121,13 +121,13 @@ def mae_matrix(P):
     elif len(P.shape) == 3:
         num_lang, num_tokens, embed_dim = P.shape
         # mae = np.zeros((num_lang, num_lang), dtype=float)
-        
+
         # Compute norms: shape -> [num_lang, num_tokens]
         norms = np.linalg.norm(P, axis=-1)
 
         # Compute dot products (using Einstein summation for broadcasted pairwise dot):
         # dots[i, j, t] = dot( emb[i, t, :], emb[j, t, :] )
-        dots = np.einsum('lte,Lte->lLt', P, P)  # shape [num_lang, num_lang, num_tokens]
+        dots = np.einsum("lte,Lte->lLt", P, P)  # shape [num_lang, num_lang, num_tokens]
 
         # Compute cosine similarities for each (i, j) language pair, at each token
         # cos[i, j, t] = dots[i, j, t] / (norms[i, t] * norms[j, t])

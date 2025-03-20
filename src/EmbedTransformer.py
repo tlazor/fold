@@ -20,9 +20,7 @@ memory = Memory(cachedir, verbose=0)
 
 @memory.cache(ignore=["model"])
 @torch.compile
-def get_token_embeddings(
-    model: nn.Module, input_ids, attention_mask
-) -> torch.Tensor:
+def get_token_embeddings(model: nn.Module, input_ids, attention_mask) -> torch.Tensor:
     """
     Compute the likelihood (probability) of each non-special token in `text`
     by masking each token and querying the model for its probability.
@@ -41,7 +39,7 @@ def get_token_embeddings(
 
     with torch.no_grad():
         hidden_state = model(input_ids, attention_mask=attention_mask).last_hidden_state
-    return hidden_state # shape: [batch_size, seq_length, hidden_dim]
+    return hidden_state  # shape: [batch_size, seq_length, hidden_dim]
 
 
 class EmbedTransformer(BaseEstimator, TransformerMixin):
@@ -95,8 +93,10 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
                 # print(f"{input_ids=}")
                 # print(f"{attention_mask=}")
                 # exit()
-                last_hidden_state = get_token_embeddings(model, input_ids, attention_mask).cpu()
-    
+                last_hidden_state = get_token_embeddings(
+                    model, input_ids, attention_mask
+                ).cpu()
+
                 token_arrays.append(last_hidden_state)
 
                 max_len = max(max_len, last_hidden_state.shape[1])
@@ -107,7 +107,9 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
                         torch.nn.functional.pad(t, (0, max_len - t.shape[0]))
                         for t in token_arrays
                     ]
-                ).detach().numpy()
+                )
+                .detach()
+                .numpy()
             )
 
         return results

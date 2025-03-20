@@ -12,5 +12,5 @@ class PsdNormalizer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         print(f"{X[0].shape=}")
-        eps=1e-9
-        return [x / (np.sum(x, axis=self.axis, keepdims=True)+eps) for x in X]
+        eps = 1e-9
+        return [x / (np.sum(x, axis=self.axis, keepdims=True) + eps) for x in X]

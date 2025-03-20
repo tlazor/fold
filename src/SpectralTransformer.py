@@ -3,7 +3,11 @@ import numpy as np
 
 
 def circular(arr):
-    new_shape = (arr.shape[0], arr.shape[1] // 2) if len(arr.shape) == 2 else (arr.shape[0], arr.shape[1] // 2, arr.shape[2])
+    new_shape = (
+        (arr.shape[0], arr.shape[1] // 2)
+        if len(arr.shape) == 2
+        else (arr.shape[0], arr.shape[1] // 2, arr.shape[2])
+    )
     fft_result_avg = np.zeros(new_shape, "complex128")
     power_spectrum_avg = np.zeros(new_shape)
     for i in range(1, arr.shape[1]):

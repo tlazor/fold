@@ -18,7 +18,12 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
 
         return [
             welch(
-                x, fs=1, nperseg=self.nperseg, window=self.window, scaling=self.scaling, axis=self.axis
+                x,
+                fs=1,
+                nperseg=self.nperseg,
+                window=self.window,
+                scaling=self.scaling,
+                axis=self.axis,
             )[1]
             for x in X
         ]

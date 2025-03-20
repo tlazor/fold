@@ -219,23 +219,24 @@ if __name__ == "__main__":
         ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
     ]
 
-    spectra_component =  [*(
+    spectra_component = [
+        *(
             # if is_spectra is True, we add just the SpectralTransformer
             [("spectra", SpectralTransformer())]
             if straight_spectra
             # otherwise, we add the two PSD-related transforms
-            else [
-                ("est_psd", PsdEstimator()),
-                ("norm_psd", PsdNormalizer())
-            ]
-        )]
+            else [("est_psd", PsdEstimator()), ("norm_psd", PsdNormalizer())]
+        )
+    ]
 
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
     for fun in metric_funs:
         metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
         metric_component = (metric_transformer.name, metric_transformer)
         pipeline = Pipeline(
-            likelihood_pipeline_components + (spectra_component if use_spectra else []) + [metric_component],
+            likelihood_pipeline_components
+            + (spectra_component if use_spectra else [])
+            + [metric_component],
             memory=pipeline_memory,
             verbose=False,
         )
