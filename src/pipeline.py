@@ -73,8 +73,9 @@ def calculate_correlations(dataframes):
             )
 
             # Flatten into long form
-            for row in corr.index:
-                for col in corr.columns:
+            for i, row in enumerate(corr.index):
+                for j in range(i + 1, len(corr.columns)):
+                    col = corr.columns[j]
                     # Skip diagonal or collect it as well
                     if row != col:
                         all_correlations.append(
