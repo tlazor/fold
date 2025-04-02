@@ -43,7 +43,7 @@ if __name__ == "__main__":
     ).mask_token_id
 
     use_spectra = True
-    straight_spectra = True
+    straight_spectra = False
     likelihood_pipeline_components = [
         ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),

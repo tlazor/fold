@@ -1,3 +1,5 @@
+import langcodes
+import pandas as pd
 from pandas import DataFrame
 
 # languages in XNLI dataset
@@ -123,3 +125,39 @@ SLAVIC_INTELLIGABILITY = DataFrame(
     },
     index=["bg", "hr", "cs", "po", "sk", "sl", "Total"],
 )
+
+def get_lexical_distance():
+    lex_sim = pd.read_excel("./data/lexical-distance-matrix.xlsx", skiprows=2)
+
+    # Drop the "branch" and "language" columns
+    # (Adjust the column names if they are titled differently in your Excel file)
+    lex_sim = lex_sim.drop(columns=["Unnamed: 0", "Unnamed: 1"])
+
+    # Convert 3-letter abbreviations to 2-letter using langcodes
+    # We assume the column is named "abbreviation" (update as needed).
+    def convert_3_to_2(letter3):
+        try:
+            lang = langcodes.Language.get(letter3)
+            return lang.language  # This should give the 2-letter ISO 639-1 code if available
+        except Exception:
+        # If the code is invalid or cannot be mapped, return something sensible
+            return letter3
+
+    lex_sim["abbr_2_letter"] = lex_sim["Abreviation"].apply(convert_3_to_2)
+
+    mapping_3_to_2 = dict(zip(lex_sim["Abreviation"], lex_sim["abbr_2_letter"]))
+
+    # 2) Rename distance columns from 3-letter to 2-letter
+    #    We'll replace any column name that appears in our mapping.
+    def rename_col(col):
+        return mapping_3_to_2[col] if col in mapping_3_to_2 else col
+
+    lex_sim = lex_sim.rename(columns=rename_col)
+
+    # 3) Set the index to the 2-letter codes instead of the 3-letter ones
+    lex_sim = lex_sim.set_index("abbr_2_letter")
+    lex_sim = lex_sim.drop(columns=["Abreviation"])
+
+    return get_lexical_distance()
+
+LEXICAL_SIMILARITY = get_lexical_distance()

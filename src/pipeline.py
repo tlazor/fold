@@ -80,7 +80,7 @@ def calculate_correlations(dataframes):
                     if row != col:
                         all_correlations.append(
                             {
-                                "df_name": df_name,
+                                # "df_name": df_name,
                                 "corr_type": corr_name,
                                 "var1": row,
                                 "var2": col,
@@ -182,8 +182,31 @@ def analyze_output(output):
 
     df_fsi.set_index("lang", inplace=True)
 
+
+    ########################### Lexical Distance ###########################
+    labels_a = xnli_df.index
+    labels_b = constants.LEXICAL_SIMILARITY.index
+    # 1. Identify overlapping labels:
+    intersection = list(set(labels_a).intersection(set(labels_b)))
+    intersection.sort()  # sort for consistent ordering
+
+    # This creates a boolean mask for the upper triangle (including diagonal)
+    upper_triangle_mask = np.triu(np.ones(constants.LEXICAL_SIMILARITY.shape), k=0).astype(bool)
+
+    # Use .where() with the mask so that values outside the upper triangle become NaN
+    lex_sim_upper = constants.LEXICAL_SIMILARITY.where(upper_triangle_mask)
+
+    # 2. Subset and reorder each distance matrix
+    df_a_sub = xnli_df.loc[intersection, intersection]
+    df_b_sub = lex_sim_upper.loc[intersection, intersection]
+
+    series_a_sub = df_a_sub.values.flatten()
+    series_b_sub = df_b_sub.values.flatten()
+
+    df_lex_sim = pd.DataFrame({"fold": series_a_sub, "lex_sim": series_b_sub})
     dataframes = {
         "mut_int": df_mut_int,
+        "lex_sim": df_lex_sim,
         "fsi": df_fsi,
     }
     results_long = calculate_correlations(dataframes)
@@ -212,7 +235,7 @@ if __name__ == "__main__":
     ).mask_token_id
 
     use_spectra = True
-    straight_spectra = True
+    straight_spectra = False
     likelihood_pipeline_components = [
         ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),

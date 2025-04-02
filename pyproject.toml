@@ -8,6 +8,7 @@ dependencies = [
     "joblib>=1.4.2",
     "langcodes>=3.5.0",
     "matplotlib>=3.10.0",
+    "openpyxl>=3.1.5",
     "pandas>=2.2.3",
     "rich>=13.9.4",
     "ruff>=0.9.10",
