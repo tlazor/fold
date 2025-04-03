@@ -1,11 +1,13 @@
 from pathlib import Path
 from joblib import Memory
+import langcodes
 from sklearn.pipeline import Pipeline
 import torch
 from scipy.stats import pearsonr, spearmanr
 
 import pandas as pd
 
+from BibleTransformer import BibleTransformer
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
 from SampleTokens import SampleTokens
@@ -15,6 +17,7 @@ from TsvToDataFrame import TsvToDataFrame
 from LikelihoodEstimator import LikelihoodEstimator
 from MetricTransformer import (
     MetricTransformer,
+    coherence_matrix,
     compute_overlaps,
     kl_divergence_matrix,
     mae_matrix,
@@ -118,14 +121,14 @@ def get_full_mut_int():
     return ful_mut_int
 
 
-def analyze_output(output):
+def analyze_output(output, langs):
     readable_names = [
-        Language.make(language=lang).display_name() for lang in constants.LANGUAGES
+        Language.make(language=lang).display_name() for lang in langs
     ]
 
     # show_heatmap(np.average(output, axis=0), readable_names)
 
-    en_index = constants.LANGUAGES.index("en")
+    en_index = langs.index("en")
     show_plot = False
 
     if show_plot:
@@ -140,7 +143,7 @@ def analyze_output(output):
             if i == en_index:
                 continue
             axes[i].hist(en_distances[:, i], bins=100, alpha=0.7, edgecolor="black")
-            axes[i].set_title(f"Distribution {constants.LANGUAGES[i]}")
+            axes[i].set_title(f"Distribution {langs[i]}")
             axes[i].set_xlabel("Value")
             axes[i].set_ylabel("Frequency")
 
@@ -150,8 +153,8 @@ def analyze_output(output):
 
     xnli_df = pd.DataFrame(
         np.median(output, axis=0),
-        index=constants.LANGUAGES,
-        columns=constants.LANGUAGES,
+        index=langs,
+        columns=langs,
     )
 
     ful_mut_int = get_full_mut_int()
@@ -171,10 +174,10 @@ def analyze_output(output):
 
     df_mut_int = pd.DataFrame({"fold": series_a_sub, "mut_int": series_b_sub})
 
-    en_source_distances = np.median(output, axis=0)[en_index]
+    en_source_distances = np.nanmedian(output, axis=0)[en_index]
     df_fsi = pd.DataFrame(columns=["lang", "fsi", "fold"])
 
-    for lang, fold_distance in zip(constants.LANGUAGES, en_source_distances):
+    for lang, fold_distance in zip(langs, en_source_distances):
         if lang == "en":
             continue
 
@@ -234,10 +237,21 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
+    langs = ["en"]
+    for lang_2l in list(constants.FSI_SCALE.keys()):
+        lang_name = langcodes.Language.make(language=lang_2l).display_name() if lang_2l != "sl" else "Slovene"
+        first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
+        if first_book_lang_file.exists():
+            langs.append(lang_2l)
+        # else:
+        #     print(f"Excluding: {lang_2l}/{lang_name}")
+    langs.sort()
+
     use_spectra = True
     straight_spectra = False
     likelihood_pipeline_components = [
-        ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
+        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)),
+        # ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
         ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
@@ -254,12 +268,14 @@ if __name__ == "__main__":
     ]
 
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
+    # metric_funs = [kl_divergence_matrix]
+    # metric_funs = [coherence_matrix]
     for fun in metric_funs:
         metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
         metric_component = (metric_transformer.name, metric_transformer)
         pipeline = Pipeline(
             likelihood_pipeline_components
-            + (spectra_component if use_spectra else [])
+            + (spectra_component if use_spectra and fun != coherence_matrix else [])
             + [metric_component],
             memory=pipeline_memory,
             verbose=False,
@@ -270,4 +286,4 @@ if __name__ == "__main__":
 
         print(metric_transformer.name, output.shape)
 
-        analyze_output(output)
+        analyze_output(output, langs)

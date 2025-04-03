@@ -3,7 +3,7 @@ import pandas as pd
 from pandas import DataFrame
 
 # languages in XNLI dataset
-LANGUAGES = [
+XNLI_LANGUAGES = [
     "ar",
     "bg",
     "de",
@@ -118,12 +118,12 @@ SLAVIC_INTELLIGABILITY = DataFrame(
         "bg": [None, 19.7, 13.4, 13.7, 10.1, 18.0, 15.0],
         "hr": [29.1, None, 19.4, 14.4, 25.9, 79.4, 33.6],
         "cs": [10.6, 18.1, None, 26.6, 95.0, 18.0, 33.7],
-        "po": [7.1, 9.5, 35.4, None, 50.7, 12.8, 23.1],
+        "pl": [7.1, 9.5, 35.4, None, 50.7, 12.8, 23.1],
         "sk": [16.0, 23.0, 92.7, 40.7, None, 18.8, 21.7],
         "sl": [20.6, 43.7, 15.7, 13.4, 15.1, None, 27.6],
         "Total": [16.7, 22.8, 35.3, 21.8, 39.4, 29.4, 24.6],
     },
-    index=["bg", "hr", "cs", "po", "sk", "sl", "Total"],
+    index=["bg", "hr", "cs", "pl", "sk", "sl", "Total"],
 )
 
 def get_lexical_distance():
@@ -158,6 +158,6 @@ def get_lexical_distance():
     lex_sim = lex_sim.set_index("abbr_2_letter")
     lex_sim = lex_sim.drop(columns=["Abreviation"])
 
-    return get_lexical_distance()
+    return lex_sim
 
 LEXICAL_SIMILARITY = get_lexical_distance()

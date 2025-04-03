@@ -14,6 +14,9 @@ class SampleTokens(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
+        n_samples = len(X)
+        n_langs = len(X[0])
+
         random.seed(self.seed)
         # list of samples of 15 langs
         filtered = [
@@ -26,7 +29,7 @@ class SampleTokens(BaseEstimator, TransformerMixin):
         ]
 
         filtered = [
-            sample for sample in filtered if len(sample) == len(constants.LANGUAGES)
+            sample for sample in filtered if len(sample) == n_langs
         ]
 
         return random.sample(filtered, self.num_samples)
