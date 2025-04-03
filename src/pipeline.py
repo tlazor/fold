@@ -273,7 +273,7 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
-    use_bible = False
+    use_bible = True
     use_spectra = True
     straight_spectra = False
     
