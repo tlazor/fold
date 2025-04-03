@@ -68,8 +68,8 @@ if __name__ == "__main__":
         )
     ]
 
-    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_matrix]
-    metric_funs = [ coherence_matrix]
+    metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
+    # metric_funs = [ coherence_matrix]
     for fun in metric_funs:
         metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun, verbose=True if fun == coherence_matrix else False)
         metric_component = (metric_transformer.name, metric_transformer)
