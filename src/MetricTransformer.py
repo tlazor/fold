@@ -142,13 +142,14 @@ def mae_matrix(P):
 
 
 class MetricTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, name, metric_fun):
+    def __init__(self, name, metric_fun, verbose=False):
         self.name = name
         self.metric_fun = metric_fun
+        self.verbose = verbose
 
     def fit(self, X, y=None):
         return self
 
     def transform(self, X):
         # samples x langs x langs
-        return np.stack([self.metric_fun(x) for x in X], axis=0)
+        return np.stack([self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0)
