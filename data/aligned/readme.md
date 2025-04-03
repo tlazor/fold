@@ -1,0 +1,1 @@
+https://github.com/christos-c/bible-corpus
