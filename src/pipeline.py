@@ -237,16 +237,19 @@ def analyze_output(output, langs):
     print(results_long.to_string(index=False, float_format="{:.3f}".format))
 
 
-def get_langs():
-    langs = ["en"]
-    for lang_2l in list(constants.FSI_SCALE.keys()):
-        lang_name = langcodes.Language.make(language=lang_2l).display_name() if lang_2l != "sl" else "Slovene"
-        first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
-        if first_book_lang_file.exists():
-            langs.append(lang_2l)
-        # else:
-        #     print(f"Excluding: {lang_2l}/{lang_name}")
-    langs.sort()
+def get_langs(use_bible=False):
+    if use_bible:
+        langs = ["en"]
+        for lang_2l in list(constants.FSI_SCALE.keys()):
+            lang_name = langcodes.Language.make(language=lang_2l).display_name() if lang_2l != "sl" else "Slovene"
+            first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
+            if first_book_lang_file.exists():
+                langs.append(lang_2l)
+            # else:
+            #     print(f"Excluding: {lang_2l}/{lang_name}")
+        langs.sort()
+    else:
+        langs = constants.XNLI_LANGUAGES
     return langs
 
 if __name__ == "__main__":
@@ -270,13 +273,14 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
-    langs = get_langs()
-
+    use_bible = False
     use_spectra = True
     straight_spectra = False
+    
+    langs = get_langs(use_bible)
     likelihood_pipeline_components = [
-        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)),
-        # ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
+        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)) if use_bible
+        else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
         ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),

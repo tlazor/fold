@@ -44,13 +44,14 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
-    langs = get_langs()
-
+    use_bible = False
     use_spectra = True
     straight_spectra = False
+    
+    langs = get_langs(use_bible)
     likelihood_pipeline_components = [
-        # ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
-        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)),
+        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)) if use_bible
+        else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
         ("embeddings", EmbedTransformer(mask_token_id=mask_token_id)),
