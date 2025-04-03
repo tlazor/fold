@@ -85,16 +85,29 @@ def calculate_correlations(dataframes):
                             {
                                 # "df_name": df_name,
                                 "corr_type": corr_name,
-                                "var1": row,
-                                "var2": col,
+                                "metric": col if col != "fold" else row,
                                 "coef": corr.loc[row, col],
                                 "pval": pvals.loc[row, col],
+                                "num_points": df.shape[0],
                             }
                         )
 
     # Convert to a single DataFrame
     results_long = pd.DataFrame(all_correlations)
-    return results_long
+
+    # Pivot the table so pearson/spearman become columns
+    pivoted = results_long.pivot_table(
+        index=['metric', 'num_points'], 
+        columns='corr_type', 
+        values=['coef', 'pval']
+    ).reset_index()
+
+    # Flatten multi-index columns
+    pivoted.columns = ['metric', 
+                    'p_coef', 'p_pval',
+                    's_coef','s_pval',
+                    'num_points',]
+    return pivoted
 
 
 def get_full_mut_int():
