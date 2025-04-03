@@ -88,7 +88,7 @@ def calculate_correlations(dataframes):
                                 "metric": col if col != "fold" else row,
                                 "coef": corr.loc[row, col],
                                 "pval": pvals.loc[row, col],
-                                "num_points": df.shape[0],
+                                "num_points": df.dropna().shape[0],
                             }
                         )
 
@@ -97,17 +97,25 @@ def calculate_correlations(dataframes):
 
     # Pivot the table so pearson/spearman become columns
     pivoted = results_long.pivot_table(
-        index=['metric', 'num_points'], 
-        columns='corr_type', 
-        values=['coef', 'pval']
-    ).reset_index()
+        index="metric", 
+        columns="corr_type", 
+        values=["coef","pval"], 
+        aggfunc="first"
+    )
 
-    # Flatten multi-index columns
-    pivoted.columns = ['metric', 
-                    'p_coef', 'p_pval',
-                    's_coef','s_pval',
-                    'num_points',]
-    return pivoted
+    # Flatten the multi-index columns
+    pivoted.columns = [f"{stat[:1]}_{ptype}"  # => p_coef, p_pval, s_coef, s_pval
+                    for ptype, stat in pivoted.columns]
+
+    # Bring in num_points (same for both rows of a given metric, so we can just pick .first())
+    num_points = results_long.groupby("metric")["num_points"].first()
+
+    # Merge them together and reset_index so metric is a column again
+    out = pivoted.join(num_points).reset_index()
+
+    # Re-order the columns if needed
+    out = out[["metric", "p_coef", "p_pval", "s_coef", "s_pval", "num_points"]]
+    return out
 
 
 def get_full_mut_int():
