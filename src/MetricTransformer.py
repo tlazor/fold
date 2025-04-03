@@ -1,5 +1,6 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
+from scipy.signal import coherence
 
 
 def compute_overlaps(freq_spectra):
@@ -139,6 +140,57 @@ def mae_matrix(P):
         mae = cos_sim.mean(axis=-1)  # shape [num_lang, num_lang]
 
     return mae
+
+
+import multiprocessing as mp
+import numpy as np
+
+def pairwise_coherence(args):
+    i, j, P, hidden_dim = args
+    s = np.array(0.0, dtype="float128")
+    for k in range(hidden_dim):
+        s += np.min(coherence(P[i, :, k], P[j, :, k])[1])
+    return i, j, s / hidden_dim
+
+def coherence_matrix_p(P):
+    num_lang, num_freq, hidden_dim = P.shape
+    overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
+
+    # Prepare argument list for each (i, j) pair in the upper triangle (i <= j)
+    # tasks = [(i, j, P, hidden_dim)
+    tasks = [(i, j, P, 1) 
+             for i in range(num_lang) 
+             for j in range(i, num_lang)]
+
+    with mp.Pool() as pool:
+        results = pool.map(pairwise_coherence, tasks)
+
+    # Fill overlap_matrix with results
+    for i, j, val in results:
+        overlap_matrix[i, j] = val
+        overlap_matrix[j, i] = val
+
+    return overlap_matrix
+
+from rich.progress import track
+def coherence_matrix(P, nperseg=10):
+    """
+    Compute the mean absolute error for all pairs of distributions
+    in a 2D array P of shape (num_langs, num_samples),
+    returning an array of shape (num_langs, num_langs).
+    """
+    if len(P.shape) == 2:
+        num_lang, num_freq = P.shape
+        overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
+
+        for i in range(num_lang):
+            for j in range(num_lang):
+                overlap_matrix[i, j] = np.mean(coherence(P[i], P[j])[1])
+
+    elif len(P.shape) == 3:
+        overlap_matrix = coherence_matrix_p(P)
+
+    return overlap_matrix
 
 
 class MetricTransformer(BaseEstimator, TransformerMixin):
