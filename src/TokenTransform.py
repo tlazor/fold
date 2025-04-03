@@ -30,7 +30,7 @@ class TokenTransform(BaseEstimator, TransformerMixin):
         memory = Memory(cachedir, verbose=0)
 
         @memory.cache
-        def tokenize(text: str, max_tokens: int = 256) -> list:
+        def tokenize(text: str, max_tokens: int = 64) -> list:
             encoded = tokenizer(
                 text,
                 max_length=max_tokens,
