@@ -4,9 +4,11 @@ from joblib import Memory
 from sklearn.pipeline import Pipeline
 import torch
 
+from BibleTransformer import BibleTransformer
 from EmbedTransformer import EmbedTransformer
 from MetricTransformer import (
     MetricTransformer,
+    coherence_matrix,
     compute_overlaps,
     kl_divergence_matrix,
     mae_matrix,
@@ -18,7 +20,7 @@ from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
 import fold_globals
-from pipeline import analyze_output
+from pipeline import analyze_output, get_langs
 
 
 if __name__ == "__main__":
@@ -42,10 +44,13 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
+    langs = get_langs()
+
     use_spectra = True
     straight_spectra = False
     likelihood_pipeline_components = [
-        ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
+        # ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
+        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
         ("embeddings", EmbedTransformer(mask_token_id=mask_token_id)),
@@ -63,13 +68,14 @@ if __name__ == "__main__":
         )
     ]
 
-    metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
+    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_matrix]
+    metric_funs = [ coherence_matrix]
     for fun in metric_funs:
-        metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
+        metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun, verbose=True if fun == coherence_matrix else False)
         metric_component = (metric_transformer.name, metric_transformer)
         pipeline = Pipeline(
             likelihood_pipeline_components
-            + (spectra_component if use_spectra else [])
+            + (spectra_component if use_spectra and fun != coherence_matrix else [])
             + [metric_component],
             memory=pipeline_memory,
             verbose=False,
@@ -80,4 +86,4 @@ if __name__ == "__main__":
 
         print(metric_transformer.name, output.shape)
 
-        analyze_output(output)
+        analyze_output(output, langs)

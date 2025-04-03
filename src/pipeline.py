@@ -237,6 +237,18 @@ def analyze_output(output, langs):
     print(results_long.to_string(index=False, float_format="{:.3f}".format))
 
 
+def get_langs():
+    langs = ["en"]
+    for lang_2l in list(constants.FSI_SCALE.keys()):
+        lang_name = langcodes.Language.make(language=lang_2l).display_name() if lang_2l != "sl" else "Slovene"
+        first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
+        if first_book_lang_file.exists():
+            langs.append(lang_2l)
+        # else:
+        #     print(f"Excluding: {lang_2l}/{lang_name}")
+    langs.sort()
+    return langs
+
 if __name__ == "__main__":
     cachedir = Path(".cache/joblib")
     pipeline_memory = Memory(cachedir, verbose=0)
@@ -258,15 +270,7 @@ if __name__ == "__main__":
         "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
     ).mask_token_id
 
-    langs = ["en"]
-    for lang_2l in list(constants.FSI_SCALE.keys()):
-        lang_name = langcodes.Language.make(language=lang_2l).display_name() if lang_2l != "sl" else "Slovene"
-        first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
-        if first_book_lang_file.exists():
-            langs.append(lang_2l)
-        # else:
-        #     print(f"Excluding: {lang_2l}/{lang_name}")
-    langs.sort()
+    langs = get_langs()
 
     use_spectra = True
     straight_spectra = False
