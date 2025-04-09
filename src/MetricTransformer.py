@@ -145,6 +145,7 @@ def mae_matrix(P):
 import multiprocessing as mp
 import numpy as np
 
+
 def pairwise_coherence(args):
     i, j, P, hidden_dim = args
     s = np.array(0.0, dtype="float128")
@@ -152,15 +153,14 @@ def pairwise_coherence(args):
         s += np.min(coherence(P[i, :, k], P[j, :, k])[1])
     return i, j, s / hidden_dim
 
+
 def coherence_matrix_p(P):
     num_lang, num_freq, hidden_dim = P.shape
     overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
 
     # Prepare argument list for each (i, j) pair in the upper triangle (i <= j)
     # tasks = [(i, j, P, hidden_dim)
-    tasks = [(i, j, P, 1) 
-             for i in range(num_lang) 
-             for j in range(i, num_lang)]
+    tasks = [(i, j, P, 1) for i in range(num_lang) for j in range(i, num_lang)]
 
     with mp.Pool() as pool:
         results = pool.map(pairwise_coherence, tasks)
@@ -172,7 +172,10 @@ def coherence_matrix_p(P):
 
     return overlap_matrix
 
+
 from rich.progress import track
+
+
 def coherence_matrix(P, nperseg=10):
     """
     Compute the mean absolute error for all pairs of distributions
@@ -204,4 +207,6 @@ class MetricTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         # samples x langs x langs
-        return np.stack([self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0)
+        return np.stack(
+            [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
+        )

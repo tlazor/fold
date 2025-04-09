@@ -97,15 +97,14 @@ def calculate_correlations(dataframes):
 
     # Pivot the table so pearson/spearman become columns
     pivoted = results_long.pivot_table(
-        index="metric", 
-        columns="corr_type", 
-        values=["coef","pval"], 
-        aggfunc="first"
+        index="metric", columns="corr_type", values=["coef", "pval"], aggfunc="first"
     )
 
     # Flatten the multi-index columns
-    pivoted.columns = [f"{stat[:1]}_{ptype}"  # => p_coef, p_pval, s_coef, s_pval
-                    for ptype, stat in pivoted.columns]
+    pivoted.columns = [
+        f"{stat[:1]}_{ptype}"  # => p_coef, p_pval, s_coef, s_pval
+        for ptype, stat in pivoted.columns
+    ]
 
     # Bring in num_points (same for both rows of a given metric, so we can just pick .first())
     num_points = results_long.groupby("metric")["num_points"].first()
@@ -143,9 +142,7 @@ def get_full_mut_int():
 
 
 def analyze_output(output, langs):
-    readable_names = [
-        Language.make(language=lang).display_name() for lang in langs
-    ]
+    readable_names = [Language.make(language=lang).display_name() for lang in langs]
 
     # show_heatmap(np.average(output, axis=0), readable_names)
 
@@ -206,7 +203,6 @@ def analyze_output(output, langs):
 
     df_fsi.set_index("lang", inplace=True)
 
-
     ########################### Lexical Distance ###########################
     labels_a = xnli_df.index
     labels_b = constants.LEXICAL_SIMILARITY.index
@@ -215,7 +211,9 @@ def analyze_output(output, langs):
     intersection.sort()  # sort for consistent ordering
 
     # This creates a boolean mask for the upper triangle (including diagonal)
-    upper_triangle_mask = np.triu(np.ones(constants.LEXICAL_SIMILARITY.shape), k=0).astype(bool)
+    upper_triangle_mask = np.triu(
+        np.ones(constants.LEXICAL_SIMILARITY.shape), k=0
+    ).astype(bool)
 
     # Use .where() with the mask so that values outside the upper triangle become NaN
     lex_sim_upper = constants.LEXICAL_SIMILARITY.where(upper_triangle_mask)
@@ -241,7 +239,11 @@ def get_langs(use_bible=False):
     if use_bible:
         langs = ["en"]
         for lang_2l in list(constants.FSI_SCALE.keys()):
-            lang_name = langcodes.Language.make(language=lang_2l).display_name() if lang_2l != "sl" else "Slovene"
+            lang_name = (
+                langcodes.Language.make(language=lang_2l).display_name()
+                if lang_2l != "sl"
+                else "Slovene"
+            )
             first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
             if first_book_lang_file.exists():
                 langs.append(lang_2l)
@@ -251,6 +253,7 @@ def get_langs(use_bible=False):
     else:
         langs = constants.XNLI_LANGUAGES
     return langs
+
 
 if __name__ == "__main__":
     cachedir = Path(".cache/joblib")
@@ -276,10 +279,11 @@ if __name__ == "__main__":
     use_bible = True
     use_spectra = True
     straight_spectra = False
-    
+
     langs = get_langs(use_bible)
     likelihood_pipeline_components = [
-        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)) if use_bible
+        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
+        if use_bible
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),

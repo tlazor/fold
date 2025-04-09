@@ -36,18 +36,25 @@ class BibleTransformer(BaseEstimator, TransformerMixin):
         """
         lang_filenames = []
         for lang_2l in self.langs:
-            lang_name = langcodes.Language.make(language=lang_2l).display_name() if lang_2l != "sl" else "Slovene"
+            lang_name = (
+                langcodes.Language.make(language=lang_2l).display_name()
+                if lang_2l != "sl"
+                else "Slovene"
+            )
             first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
             if first_book_lang_file.exists():
                 lang_filenames.append(f"{lang_name}.txt")
             else:
                 print(f"Excluding: {lang_2l}/{lang_name}")
-        
+
         aligned_lines = []
         for book_num in range(1, self.books):
             book_path = list(self.file_path.rglob(f"{book_num}-b.*"))[0]
-            lang_files = [open(book_path / lang_fn, "r", encoding=self.encoding) for lang_fn in lang_filenames]
-            
+            lang_files = [
+                open(book_path / lang_fn, "r", encoding=self.encoding)
+                for lang_fn in lang_filenames
+            ]
+
             for line_tuple in zip(*lang_files):
                 # line_tuple might look like ("line1 from file1\n", "line1 from file2\n", ...)
                 row = [line.strip() for line in line_tuple]

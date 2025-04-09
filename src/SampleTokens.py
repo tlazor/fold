@@ -28,8 +28,6 @@ class SampleTokens(BaseEstimator, TransformerMixin):
             for sample in X
         ]
 
-        filtered = [
-            sample for sample in filtered if len(sample) == n_langs
-        ]
+        filtered = [sample for sample in filtered if len(sample) == n_langs]
 
         return random.sample(filtered, self.num_samples)

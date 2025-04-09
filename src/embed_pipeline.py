@@ -47,10 +47,11 @@ if __name__ == "__main__":
     use_bible = True
     use_spectra = True
     straight_spectra = False
-    
+
     langs = get_langs(use_bible)
     likelihood_pipeline_components = [
-        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)) if use_bible
+        ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
+        if use_bible
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
@@ -72,7 +73,11 @@ if __name__ == "__main__":
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
     # metric_funs = [ coherence_matrix]
     for fun in metric_funs:
-        metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun, verbose=True if fun == coherence_matrix else False)
+        metric_transformer = MetricTransformer(
+            name=fun.__name__,
+            metric_fun=fun,
+            verbose=True if fun == coherence_matrix else False,
+        )
         metric_component = (metric_transformer.name, metric_transformer)
         pipeline = Pipeline(
             likelihood_pipeline_components

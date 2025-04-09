@@ -126,6 +126,7 @@ SLAVIC_INTELLIGABILITY = DataFrame(
     index=["bg", "hr", "cs", "pl", "sk", "sl", "Total"],
 )
 
+
 def get_lexical_distance():
     lex_sim = pd.read_excel("./data/lexical-distance-matrix.xlsx", skiprows=2)
 
@@ -136,12 +137,9 @@ def get_lexical_distance():
     # Convert 3-letter abbreviations to 2-letter using langcodes
     # We assume the column is named "abbreviation" (update as needed).
     def convert_3_to_2(letter3):
-        try:
-            lang = langcodes.Language.get(letter3)
-            return lang.language  # This should give the 2-letter ISO 639-1 code if available
-        except Exception:
-        # If the code is invalid or cannot be mapped, return something sensible
-            return letter3
+        return langcodes.Language.get(
+            letter3
+        ).language  # This should give the 2-letter ISO 639-1 code if available
 
     lex_sim["abbr_2_letter"] = lex_sim["Abreviation"].apply(convert_3_to_2)
 
@@ -159,5 +157,6 @@ def get_lexical_distance():
     lex_sim = lex_sim.drop(columns=["Abreviation"])
 
     return lex_sim
+
 
 LEXICAL_SIMILARITY = get_lexical_distance()
