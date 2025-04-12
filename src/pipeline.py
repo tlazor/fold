@@ -175,23 +175,6 @@ def analyze_output(output, langs):
         columns=langs,
     )
 
-    ful_mut_int = get_full_mut_int()
-
-    labels_a = xnli_df.index
-    labels_b = ful_mut_int.index
-    # 1. Identify overlapping labels:
-    intersection = list(set(labels_a).intersection(set(labels_b)))
-    intersection.sort()  # sort for consistent ordering
-
-    # 2. Subset and reorder each distance matrix
-    df_a_sub = xnli_df.loc[intersection, intersection]
-    df_b_sub = ful_mut_int.loc[intersection, intersection]
-
-    series_a_sub = df_a_sub.values.flatten()
-    series_b_sub = df_b_sub.values.flatten()
-
-    df_mut_int = pd.DataFrame({"fold": series_a_sub, "mut_int": series_b_sub})
-
     en_source_distances = np.nanmedian(output, axis=0)[en_index]
     df_fsi = pd.DataFrame(columns=["lang", "fsi", "fold"])
 
@@ -203,20 +186,39 @@ def analyze_output(output, langs):
 
     df_fsi.set_index("lang", inplace=True)
 
+    ######################## Mutual Intelligibility ########################
+    df_mut_int = get_overlap(xnli_df, get_full_mut_int(), "mut_int")
     ########################### Lexical Distance ###########################
+    df_lex_sim = get_overlap(xnli_df, constants.LEXICAL_SIMILARITY, "lex_sim")
+    ########################### Phonetic Distance ##########################
+    df_pho_sim = get_overlap(xnli_df, constants.PHONETIC_SIMILARITY, "pho_sim")
+    ########################################################################
+
+    
+    dataframes = {
+        "mut_int": df_mut_int,
+        "lex_sim": df_lex_sim,
+        "fsi": df_fsi,
+        "pho_sim": df_pho_sim,
+    }
+    results_long = calculate_correlations(dataframes)
+    print(results_long.to_string(index=False, float_format="{:.3f}".format))
+
+def get_overlap(xnli_df, baseline, baseline_name):
     labels_a = xnli_df.index
-    labels_b = constants.LEXICAL_SIMILARITY.index
+    labels_b = baseline.index
+
     # 1. Identify overlapping labels:
     intersection = list(set(labels_a).intersection(set(labels_b)))
     intersection.sort()  # sort for consistent ordering
 
     # This creates a boolean mask for the upper triangle (including diagonal)
     upper_triangle_mask = np.triu(
-        np.ones(constants.LEXICAL_SIMILARITY.shape), k=0
+        np.ones(baseline.shape), k=0
     ).astype(bool)
 
     # Use .where() with the mask so that values outside the upper triangle become NaN
-    lex_sim_upper = constants.LEXICAL_SIMILARITY.where(upper_triangle_mask)
+    lex_sim_upper = baseline.where(upper_triangle_mask)
 
     # 2. Subset and reorder each distance matrix
     df_a_sub = xnli_df.loc[intersection, intersection]
@@ -224,15 +226,9 @@ def analyze_output(output, langs):
 
     series_a_sub = df_a_sub.values.flatten()
     series_b_sub = df_b_sub.values.flatten()
+    df = pd.DataFrame({"fold": series_a_sub, baseline_name: series_b_sub})
 
-    df_lex_sim = pd.DataFrame({"fold": series_a_sub, "lex_sim": series_b_sub})
-    dataframes = {
-        "mut_int": df_mut_int,
-        "lex_sim": df_lex_sim,
-        "fsi": df_fsi,
-    }
-    results_long = calculate_correlations(dataframes)
-    print(results_long.to_string(index=False, float_format="{:.3f}".format))
+    return df
 
 
 def get_langs(use_bible=False):
