@@ -187,7 +187,7 @@ def analyze_output(output, langs):
     df_fsi.set_index("lang", inplace=True)
 
     ######################## Mutual Intelligibility ########################
-    df_mut_int = get_overlap(xnli_df, get_full_mut_int(), "mut_int")
+    df_mut_int = get_overlap(xnli_df, get_full_mut_int(), "mut_int", symmetrical=False)
     ########################### Lexical Distance ###########################
     df_lex_sim = get_overlap(xnli_df, constants.LEXICAL_SIMILARITY, "lex_sim")
     ########################### Phonetic Distance ##########################
@@ -204,7 +204,7 @@ def analyze_output(output, langs):
     results_long = calculate_correlations(dataframes)
     print(results_long.to_string(index=False, float_format="{:.3f}".format))
 
-def get_overlap(xnli_df, baseline, baseline_name):
+def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     labels_a = xnli_df.index
     labels_b = baseline.index
 
@@ -218,11 +218,11 @@ def get_overlap(xnli_df, baseline, baseline_name):
     ).astype(bool)
 
     # Use .where() with the mask so that values outside the upper triangle become NaN
-    lex_sim_upper = baseline.where(upper_triangle_mask)
+    baseline_df = baseline.where(upper_triangle_mask) if symmetrical else baseline
 
     # 2. Subset and reorder each distance matrix
     df_a_sub = xnli_df.loc[intersection, intersection]
-    df_b_sub = lex_sim_upper.loc[intersection, intersection]
+    df_b_sub = baseline_df.loc[intersection, intersection]
 
     series_a_sub = df_a_sub.values.flatten()
     series_b_sub = df_b_sub.values.flatten()
