@@ -55,7 +55,7 @@ if __name__ == "__main__":
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
-        ("embeddings", EmbedTransformer(mask_token_id=mask_token_id)),
+        ("embeddings", EmbedTransformer(mask_token_id=mask_token_id, layer=12)),
     ]
     spectra_component = [
         *(
