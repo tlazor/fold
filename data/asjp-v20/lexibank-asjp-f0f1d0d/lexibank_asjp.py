@@ -13,7 +13,9 @@ from pyasjp.models import MEANINGS_ALL
 
 def slug(s):
     """Condensed version of s, containing only lowercase alphanumeric characters."""
-    res = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+    res = "".join(
+        c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
+    )
     for c in string.punctuation:
         if c != "_":
             res = res.replace(c, "")
@@ -103,11 +105,17 @@ class Dataset(pylexibank.Dataset):
             assert lid not in lids, doculect.id
             lids.add(lid)
             sources = asjp.source(doculect) or []
-            sources = [src for src in sources if src.author or src.year or src.title_etc]
+            sources = [
+                src for src in sources if src.author or src.year or src.title_etc
+            ]
             for src in sources:
                 args.writer.add_sources(
                     Source(
-                        "misc", str(src.id), author=src.author, year=src.year, title=src.title_etc
+                        "misc",
+                        str(src.id),
+                        author=src.author,
+                        year=src.year,
+                        title=src.title_etc,
                     )
                 )
 
