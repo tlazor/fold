@@ -161,4 +161,6 @@ def get_lexical_distance():
 
 LEXICAL_SIMILARITY = get_lexical_distance()
 
-PHONETIC_SIMILARITY = pd.read_csv("./data/asjp_ldnd_distances_by_iso2.csv", header=0, index_col=0)
+PHONETIC_SIMILARITY = pd.read_csv(
+    "./data/asjp_ldnd_distances_by_iso2.csv", header=0, index_col=0
+)
