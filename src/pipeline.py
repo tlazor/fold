@@ -141,7 +141,22 @@ def get_full_mut_int():
     return ful_mut_int
 
 
-def analyze_output(output, langs):
+def star_fmt(p: float) -> str:
+    """Return a string with significance stars appended."""
+    if p < 0.001:
+        return f"{p:.3f}***"
+    elif p < 0.01:
+        return f"{p:.3f}**"
+    elif p < 0.05:
+        return f"{p:.3f}*"
+    else:
+        return f"{p:.3f}"
+
+
+formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
+
+
+def analyze_output(output, langs, f=None):
     readable_names = [Language.make(language=lang).display_name() for lang in langs]
 
     # show_heatmap(np.average(output, axis=0), readable_names)
@@ -194,7 +209,6 @@ def analyze_output(output, langs):
     df_pho_sim = get_overlap(xnli_df, constants.PHONETIC_SIMILARITY, "pho_sim")
     ########################################################################
 
-    
     dataframes = {
         "mut_int": df_mut_int,
         "lex_sim": df_lex_sim,
@@ -202,7 +216,12 @@ def analyze_output(output, langs):
         "pho_sim": df_pho_sim,
     }
     results_long = calculate_correlations(dataframes)
-    print(results_long.to_string(index=False, float_format="{:.3f}".format))
+    print(
+        results_long.to_markdown(index=False, floatfmt=".3f", tablefmt="github"),
+        file=f,
+        flush=True,
+    )
+
 
 def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     labels_a = xnli_df.index
@@ -213,9 +232,7 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     intersection.sort()  # sort for consistent ordering
 
     # This creates a boolean mask for the upper triangle (including diagonal)
-    upper_triangle_mask = np.triu(
-        np.ones(baseline.shape), k=0
-    ).astype(bool)
+    upper_triangle_mask = np.triu(np.ones(baseline.shape), k=0).astype(bool)
 
     # Use .where() with the mask so that values outside the upper triangle become NaN
     baseline_df = baseline.where(upper_triangle_mask) if symmetrical else baseline
@@ -275,6 +292,7 @@ if __name__ == "__main__":
     use_bible = True
     use_spectra = True
     straight_spectra = False
+    # layers = range(1, 12)
 
     langs = get_langs(use_bible)
     likelihood_pipeline_components = [
@@ -299,6 +317,8 @@ if __name__ == "__main__":
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
     # metric_funs = [kl_divergence_matrix]
     # metric_funs = [coherence_matrix]
+
+    f = open(Path("./likelihood_output.txt"), "w+", encoding="utf-8")
     for fun in metric_funs:
         metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
         metric_component = (metric_transformer.name, metric_transformer)
@@ -312,7 +332,6 @@ if __name__ == "__main__":
 
         # pass None because TSVToDataFrame ignores X and reads from file_path
         output = pipeline.fit_transform(None)
+        print(metric_transformer.name, output.shape, file=f)
 
-        print(metric_transformer.name, output.shape)
-
-        analyze_output(output, langs)
+        analyze_output(output, langs, f=f)

@@ -19,6 +19,7 @@ from SampleTokens import SampleTokens
 from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
+import constants
 import fold_globals
 from pipeline import analyze_output, get_langs
 
@@ -47,6 +48,7 @@ if __name__ == "__main__":
     use_bible = True
     use_spectra = True
     straight_spectra = False
+    layers = range(1, 12)
 
     langs = get_langs(use_bible)
     likelihood_pipeline_components = [
@@ -55,7 +57,6 @@ if __name__ == "__main__":
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform()),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
-        ("embeddings", EmbedTransformer(mask_token_id=mask_token_id, layer=12)),
     ]
     spectra_component = [
         *(
@@ -72,6 +73,7 @@ if __name__ == "__main__":
 
     metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
     # metric_funs = [ coherence_matrix]
+    f = open(Path("./embedding_output.txt"), "w+", encoding="utf-8")
     for fun in metric_funs:
         metric_transformer = MetricTransformer(
             name=fun.__name__,
@@ -79,17 +81,26 @@ if __name__ == "__main__":
             verbose=True if fun == coherence_matrix else False,
         )
         metric_component = (metric_transformer.name, metric_transformer)
-        pipeline = Pipeline(
-            likelihood_pipeline_components
-            + (spectra_component if use_spectra and fun != coherence_matrix else [])
-            + [metric_component],
-            memory=pipeline_memory,
-            verbose=False,
-        )
+        print(metric_transformer.name, file=f)
 
-        # pass None because TSVToDataFrame ignores X and reads from file_path
-        output = pipeline.fit_transform(None)
+        for layer in layers:
+            embed_component = (
+                "embeddings",
+                EmbedTransformer(mask_token_id=mask_token_id, layer=layer),
+            )
 
-        print(metric_transformer.name, output.shape)
+            pipeline = Pipeline(
+                likelihood_pipeline_components
+                + [embed_component]
+                + (spectra_component if use_spectra and fun != coherence_matrix else [])
+                + [metric_component],
+                memory=pipeline_memory,
+                verbose=False,
+            )
 
-        analyze_output(output, langs)
+            # pass None because TSVToDataFrame ignores X and reads from file_path
+            output = pipeline.fit_transform(None)
+            print(f"{layer=}", file=f)
+
+            analyze_output(output, langs, f=f)
+    f.close()
