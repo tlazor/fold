@@ -98,7 +98,8 @@ for run_name, data in runs_data.items():
             metric_data["layer"],
             metric_data["p_pval"],
             label="p_pval",
-            marker="x",alpha=0.5
+            marker="x",
+            alpha=0.5,
         )
 
         # Plot p_coef vs layer
@@ -106,12 +107,17 @@ for run_name, data in runs_data.items():
             metric_data["layer"],
             metric_data["p_coef"],
             label="p_coef",
-            marker="x",alpha=0.5
+            marker="x",
+            alpha=0.5,
         )
 
         # Plot s_pval vs layer
         plt.plot(
-            metric_data["layer"], metric_data["s_pval"], label="s_pval", marker="s",alpha=0.5
+            metric_data["layer"],
+            metric_data["s_pval"],
+            label="s_pval",
+            marker="s",
+            alpha=0.5,
         )
 
         # Plot p_coef vs layer
@@ -120,7 +126,7 @@ for run_name, data in runs_data.items():
             metric_data["s_coef"],
             label="s_coef",
             marker="s",
-            alpha=0.5
+            alpha=0.5,
         )
 
         # Add labels and title
