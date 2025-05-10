@@ -7,6 +7,7 @@ from scipy.stats import pearsonr, spearmanr
 
 import pandas as pd
 
+from BandSelectTransformer import BandSelectTransformer
 from BibleTransformer import BibleTransformer
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
@@ -293,6 +294,9 @@ if __name__ == "__main__":
     use_spectra = True
     straight_spectra = False
     # layers = range(1, 12)
+    num_bands = 3
+    beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
+    freq_bands = zip(beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands))
 
     langs = get_langs(use_bible)
     likelihood_pipeline_components = [
@@ -314,24 +318,28 @@ if __name__ == "__main__":
         )
     ]
 
-    metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
-    # metric_funs = [kl_divergence_matrix]
+    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
+    metric_funs = [kl_divergence_matrix]
     # metric_funs = [coherence_matrix]
 
     f = open(Path("./likelihood_output.txt"), "w+", encoding="utf-8")
-    for fun in metric_funs:
-        metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
-        metric_component = (metric_transformer.name, metric_transformer)
-        pipeline = Pipeline(
-            likelihood_pipeline_components
-            + (spectra_component if use_spectra and fun != coherence_matrix else [])
-            + [metric_component],
-            memory=pipeline_memory,
-            verbose=False,
-        )
+    for band in freq_bands:
+        print(f"{band=}", file=f)
+        band_component = (f"{band[0]:.3f}-{band[1]:.3f} selector", BandSelectTransformer(freq_band=band))
+        for fun in metric_funs:
+            metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
+            metric_component = (metric_transformer.name, metric_transformer)
+            pipeline = Pipeline(
+                likelihood_pipeline_components
+                + (spectra_component if use_spectra and fun != coherence_matrix else [])
+                + [band_component]
+                + [metric_component],
+                memory=pipeline_memory,
+                verbose=True,
+            )
 
-        # pass None because TSVToDataFrame ignores X and reads from file_path
-        output = pipeline.fit_transform(None)
-        print(metric_transformer.name, output.shape, file=f)
+            # pass None because TSVToDataFrame ignores X and reads from file_path
+            output = pipeline.fit_transform(None)
+            print(metric_transformer.name, output.shape, file=f)
 
-        analyze_output(output, langs, f=f)
+            analyze_output(output, langs, f=f)
