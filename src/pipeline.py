@@ -325,7 +325,10 @@ if __name__ == "__main__":
     f = open(Path("./likelihood_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
         print(f"{band=}", file=f)
-        band_component = (f"{band[0]:.3f}-{band[1]:.3f} selector", BandSelectTransformer(freq_band=band))
+        band_component = (
+            f"{band[0]:.3f}-{band[1]:.3f} selector",
+            BandSelectTransformer(freq_band=band),
+        )
         for fun in metric_funs:
             metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
             metric_component = (metric_transformer.name, metric_transformer)

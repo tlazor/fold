@@ -78,11 +78,14 @@ if __name__ == "__main__":
     ]
 
     # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
-    metric_funs = [ kl_divergence_matrix]
+    metric_funs = [kl_divergence_matrix]
     f = open(Path("./embedding_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
         print(f"{band=}", file=f)
-        band_component = (f"{band[0]:.3f}-{band[1]:.3f} selector", BandSelectTransformer(freq_band=band))
+        band_component = (
+            f"{band[0]:.3f}-{band[1]:.3f} selector",
+            BandSelectTransformer(freq_band=band),
+        )
         for fun in metric_funs:
             metric_transformer = MetricTransformer(
                 name=fun.__name__,
@@ -101,7 +104,11 @@ if __name__ == "__main__":
                 pipeline = Pipeline(
                     likelihood_pipeline_components
                     + [embed_component]
-                    + (spectra_component if use_spectra and fun != coherence_matrix else [])
+                    + (
+                        spectra_component
+                        if use_spectra and fun != coherence_matrix
+                        else []
+                    )
                     + [band_component]
                     + [metric_component],
                     memory=pipeline_memory,
