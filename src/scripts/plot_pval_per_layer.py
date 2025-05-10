@@ -57,6 +57,9 @@ def parse_multiple_runs(file_path):
             data["p_pval"] = pd.to_numeric(data["p_pval"], errors="coerce")
             data["s_pval"] = pd.to_numeric(data["s_pval"], errors="coerce")
 
+            data["p_coef"] = pd.to_numeric(data["p_coef"], errors="coerce")
+            data["s_coef"] = pd.to_numeric(data["s_coef"], errors="coerce")
+
             # Add layer number to each entry
             data["layer"] = layer_number
 
@@ -92,17 +95,32 @@ for run_name, data in runs_data.items():
 
         # Plot p_pval vs layer
         plt.plot(
-            metric_data["layer"].tolist(),
-            metric_data["p_pval"].tolist(),
+            metric_data["layer"],
+            metric_data["p_pval"],
             label="p_pval",
-            marker="o",
+            marker="x",alpha=0.5
         )
 
-        print(metric_data["layer"].tolist(), metric_data["p_pval"].tolist())
+        # Plot p_coef vs layer
+        plt.plot(
+            metric_data["layer"],
+            metric_data["p_coef"],
+            label="p_coef",
+            marker="x",alpha=0.5
+        )
 
         # Plot s_pval vs layer
         plt.plot(
-            metric_data["layer"], metric_data["s_pval"], label="s_pval", marker="s"
+            metric_data["layer"], metric_data["s_pval"], label="s_pval", marker="s",alpha=0.5
+        )
+
+        # Plot p_coef vs layer
+        plt.plot(
+            metric_data["layer"],
+            metric_data["s_coef"],
+            label="s_coef",
+            marker="s",
+            alpha=0.5
         )
 
         # Add labels and title
