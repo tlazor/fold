@@ -294,9 +294,14 @@ if __name__ == "__main__":
     use_spectra = True
     straight_spectra = False
     # layers = range(1, 12)
-    num_bands = 3
-    beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
-    freq_bands = zip(beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands))
+    num_bands = 1
+    if num_bands > 1:
+        beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
+        freq_bands = zip(
+            beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands)
+        )
+    else:
+        freq_bands = [(0, 1)]
 
     langs = get_langs(use_bible)
     likelihood_pipeline_components = [

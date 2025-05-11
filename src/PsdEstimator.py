@@ -50,7 +50,9 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
                 psd_reshaped = psd
 
             # Create interpolation function
-            interp_func = interp1d(freqs, psd_reshaped, axis=1, fill_value='extrapolate')
+            interp_func = interp1d(
+                freqs, psd_reshaped, axis=1, fill_value="extrapolate"
+            )
             # Interpolate to common frequencies
             aligned_psd = interp_func(common_freqs)
 

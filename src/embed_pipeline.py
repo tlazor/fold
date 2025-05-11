@@ -55,7 +55,9 @@ if __name__ == "__main__":
     num_bands = 1
     if num_bands > 1:
         beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
-        freq_bands = zip(beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands))
+        freq_bands = zip(
+            beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands)
+        )
     else:
         freq_bands = [(0, 1)]
 
