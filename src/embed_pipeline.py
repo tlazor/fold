@@ -27,7 +27,7 @@ from pipeline import analyze_output, get_langs
 
 
 if __name__ == "__main__":
-    cachedir = Path(".cache/joblib")
+    cachedir = Path(".cache/joblib/tmp/embed_pipeline")
     pipeline_memory = Memory(cachedir, verbose=0)
 
     torch.set_float32_matmul_precision("high")
@@ -52,9 +52,12 @@ if __name__ == "__main__":
     straight_spectra = False
     # layers = range(1, 12)
     layers = [12]
-    num_bands = 10
-    beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
-    freq_bands = zip(beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands))
+    num_bands = 1
+    if num_bands > 1:
+        beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
+        freq_bands = zip(beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands))
+    else:
+        freq_bands = [(0, 1)]
 
     langs = get_langs(use_bible)
     likelihood_pipeline_components = [
