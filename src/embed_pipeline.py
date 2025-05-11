@@ -24,7 +24,7 @@ from TsvToDataFrame import TsvToDataFrame
 import constants
 import fold_globals
 from pipeline import analyze_output, get_langs
-
+from functools import partial
 
 if __name__ == "__main__":
     cachedir = Path(".cache/joblib/tmp/embed_pipeline")
@@ -82,8 +82,12 @@ if __name__ == "__main__":
         )
     ]
 
-    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
-    metric_funs = [kl_divergence_matrix]
+    coherence_fun = partial(coherence_matrix, nperseg=10)
+    coherence_fun.__name__ = "coherence_fun"
+    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
+    # metric_funs = [kl_divergence_matrix]
+    metric_funs = [coherence_fun]
+
     f = open(Path("./embedding_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
         print(f"{band=}", file=f)
@@ -95,7 +99,7 @@ if __name__ == "__main__":
             metric_transformer = MetricTransformer(
                 name=fun.__name__,
                 metric_fun=fun,
-                verbose=True if fun == coherence_matrix else False,
+                verbose=True if fun == coherence_fun else False,
             )
             metric_component = (metric_transformer.name, metric_transformer)
             print(metric_transformer.name, file=f)
@@ -111,10 +115,10 @@ if __name__ == "__main__":
                     + [embed_component]
                     + (
                         spectra_component
-                        if use_spectra and fun != coherence_matrix
+                        if use_spectra and fun != coherence_fun
                         else []
                     )
-                    + [band_component]
+                    + ([band_component] if fun != coherence_fun else [])
                     + [metric_component],
                     memory=pipeline_memory,
                     verbose=False,

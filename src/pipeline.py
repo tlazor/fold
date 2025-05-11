@@ -4,6 +4,8 @@ import langcodes
 from sklearn.pipeline import Pipeline
 import torch
 from scipy.stats import pearsonr, spearmanr
+from rich.progress import track
+from functools import partial
 
 import pandas as pd
 
@@ -270,7 +272,7 @@ def get_langs(use_bible=False):
 
 
 if __name__ == "__main__":
-    cachedir = Path(".cache/joblib")
+    cachedir = Path(".cache/joblib/tmp/coherence_pipeline")
     pipeline_memory = Memory(cachedir, verbose=0)
 
     torch.set_float32_matmul_precision("high")
@@ -323,9 +325,11 @@ if __name__ == "__main__":
         )
     ]
 
-    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
-    metric_funs = [kl_divergence_matrix]
-    # metric_funs = [coherence_matrix]
+    coherence_fun = partial(coherence_matrix, nperseg=10)
+    coherence_fun.__name__ = "coherence_fun"
+    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
+    # metric_funs = [kl_divergence_matrix]
+    metric_funs = [coherence_fun]
 
     f = open(Path("./likelihood_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
@@ -335,12 +339,12 @@ if __name__ == "__main__":
             BandSelectTransformer(freq_band=band),
         )
         for fun in metric_funs:
-            metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun)
+            metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun, verbose=True)
             metric_component = (metric_transformer.name, metric_transformer)
             pipeline = Pipeline(
                 likelihood_pipeline_components
-                + (spectra_component if use_spectra and fun != coherence_matrix else [])
-                + [band_component]
+                + (spectra_component if use_spectra and fun != coherence_fun else [])
+                + ([band_component] if fun != coherence_fun else [])
                 + [metric_component],
                 memory=pipeline_memory,
                 verbose=True,

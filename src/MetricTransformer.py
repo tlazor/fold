@@ -1,6 +1,7 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
 from scipy.signal import coherence
+from rich.progress import track
 
 
 def compute_overlaps(freq_spectra):
@@ -142,58 +143,55 @@ def mae_matrix(P):
     return mae
 
 
-import multiprocessing as mp
-import numpy as np
-
-
-def pairwise_coherence(args):
-    i, j, P, hidden_dim = args
-    s = np.array(0.0, dtype="float128")
-    for k in range(hidden_dim):
-        s += np.min(coherence(P[i, :, k], P[j, :, k])[1])
-    return i, j, s / hidden_dim
-
-
-def coherence_matrix_p(P):
-    num_lang, num_freq, hidden_dim = P.shape
-    overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
-
-    # Prepare argument list for each (i, j) pair in the upper triangle (i <= j)
-    # tasks = [(i, j, P, hidden_dim)
-    tasks = [(i, j, P, 1) for i in range(num_lang) for j in range(i, num_lang)]
-
-    with mp.Pool() as pool:
-        results = pool.map(pairwise_coherence, tasks)
-
-    # Fill overlap_matrix with results
-    for i, j, val in results:
-        overlap_matrix[i, j] = val
-        overlap_matrix[j, i] = val
-
-    return overlap_matrix
-
-
-from rich.progress import track
-
-
-def coherence_matrix(P, nperseg=10):
+def coherence_matrix(P, fs=1.0, nperseg=None):
     """
-    Compute the mean absolute error for all pairs of distributions
+    Compute the coherence between all pairs of distributions
     in a 2D array P of shape (num_langs, num_samples),
     returning an array of shape (num_langs, num_langs).
+    
+    Parameters
+    ----------
+    P : np.ndarray
+        Input array of shape (num_langs, num_samples) or (num_langs, num_tokens, num_samples)
+    fs : float, optional
+        Sampling frequency of the signals. Default is 1.0.
+    nperseg : int, optional
+        Length of each segment for coherence calculation. Default is None (uses scipy's default).
+        
+    Returns
+    -------
+    coherence_matrix : np.ndarray
+        Matrix of shape (num_langs, num_langs) containing coherence values between all pairs
     """
     if len(P.shape) == 2:
-        num_lang, num_freq = P.shape
-        overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
-
-        for i in range(num_lang):
-            for j in range(num_lang):
-                overlap_matrix[i, j] = np.mean(coherence(P[i], P[j])[1])
-
+        num_langs = P.shape[0]
+        coherence_mat = np.zeros((num_langs, num_langs))
+        
+        for i in range(num_langs):
+            for j in range(num_langs):
+                # Calculate coherence between signals
+                f, Cxy = coherence(P[i], P[j], fs=fs, nperseg=nperseg)
+                # Take mean of coherence across all frequencies
+                coherence_mat[i, j] = np.mean(Cxy)
+                
+        return coherence_mat
+        
     elif len(P.shape) == 3:
-        overlap_matrix = coherence_matrix_p(P)
-
-    return overlap_matrix
+        num_langs, num_tokens, _ = P.shape
+        coherence_mat = np.zeros((num_langs, num_langs))
+        
+        for i in range(num_langs):
+            for j in range(num_langs):
+                # print(f"Computing coherence for language {i} and {j}")
+                # Calculate coherence for each token position
+                token_coherences = []
+                for t in range(num_tokens):
+                    f, Cxy = coherence(P[i, t], P[j, t], fs=fs, nperseg=nperseg)
+                    token_coherences.append(np.mean(Cxy))
+                # Average coherence across all tokens
+                coherence_mat[i, j] = np.mean(token_coherences)
+                
+        return coherence_mat
 
 
 class MetricTransformer(BaseEstimator, TransformerMixin):
