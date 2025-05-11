@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "cupy-cuda12x>=13.4.1",
     "joblib>=1.4.2",
     "langcodes>=3.5.0",
     "levenshtein>=0.27.1",
