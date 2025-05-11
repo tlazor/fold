@@ -1,6 +1,5 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
-from scipy.signal import coherence
 from rich.progress import track
 
 
@@ -164,6 +163,7 @@ def coherence_matrix(P, fs=1.0, nperseg=None):
         Matrix of shape (num_langs, num_langs) containing coherence values between all pairs
     """
     if len(P.shape) == 2:
+        from scipy.signal import coherence
         num_langs = P.shape[0]
         coherence_mat = np.zeros((num_langs, num_langs))
         
@@ -177,21 +177,32 @@ def coherence_matrix(P, fs=1.0, nperseg=None):
         return coherence_mat
         
     elif len(P.shape) == 3:
+        import cupy as cp
+        from cupyx.scipy.signal import coherence
+
         num_langs, num_tokens, _ = P.shape
-        coherence_mat = np.zeros((num_langs, num_langs))
+        coherence_mat = cp.zeros((num_langs, num_langs))
         
+        # Process language pairs in parallel where possible
         for i in range(num_langs):
+            # Get all signals for language i
+            sigs_i = P[i]  # shape: (num_tokens, num_samples)
+            
             for j in range(num_langs):
-                # print(f"Computing coherence for language {i} and {j}")
-                # Calculate coherence for each token position
-                token_coherences = []
-                for t in range(num_tokens):
-                    f, Cxy = coherence(P[i, t], P[j, t], fs=fs, nperseg=nperseg)
-                    token_coherences.append(np.mean(Cxy))
-                # Average coherence across all tokens
-                coherence_mat[i, j] = np.mean(token_coherences)
+                # Get all signals for language j
+                sigs_j = P[j]  # shape: (num_tokens, num_samples)
                 
-        return coherence_mat
+                # Calculate coherence for all token positions at once
+                _, Cxy = coherence(sigs_i, sigs_j, fs=fs, nperseg=nperseg)
+                
+                # Cxy shape: (num_tokens, n_freqs)
+                # Take mean across frequencies for each token
+                token_coherences = cp.mean(Cxy, axis=1)  # shape: (num_tokens,)
+                
+                # Take mean across all tokens
+                coherence_mat[i, j] = cp.mean(token_coherences)
+                
+        return coherence_mat.get()
 
 
 class MetricTransformer(BaseEstimator, TransformerMixin):
@@ -205,6 +216,16 @@ class MetricTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         # samples x langs x langs
-        return np.stack(
-            [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
-        )
+        # samples x langs x tokens x hidden_dim
+        if self.name == "coherence_fun" and len(X[0].shape) == 3:
+            import cupy as cp
+
+            X_gpu = [cp.asarray(x) for x in X]
+            return np.stack(
+                [self.metric_fun(x) for x in (track(X_gpu) if self.verbose else X_gpu)], axis=0
+            )
+        else:
+            return np.stack(
+                [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
+            )
+        
