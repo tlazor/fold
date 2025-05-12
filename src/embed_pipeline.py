@@ -27,7 +27,7 @@ from pipeline import analyze_output, get_langs
 from functools import partial
 
 if __name__ == "__main__":
-    cachedir = Path(".cache/joblib/tmp/embed_pipeline")
+    cachedir = Path(".cache/joblib/tmp/output_coherence")
     pipeline_memory = Memory(cachedir, verbose=0)
 
     torch.set_float32_matmul_precision("high")
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     straight_spectra = False
     # layers = range(1, 12)
     layers = [12]
-    num_bands = 1
+    num_bands = 10
     if num_bands > 1:
         beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
         freq_bands = zip(
@@ -82,15 +82,17 @@ if __name__ == "__main__":
         )
     ]
 
-    coherence_fun = partial(coherence_matrix, nperseg=10)
-    coherence_fun.__name__ = "coherence_fun"
     # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
     # metric_funs = [kl_divergence_matrix]
-    metric_funs = [coherence_fun]
 
     f = open(Path("./embedding_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
         print(f"{band=}", file=f)
+
+        coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
+        coherence_fun.__name__ = "coherence_fun"
+        metric_funs = [coherence_fun]
+
         band_component = (
             f"{band[0]:.3f}-{band[1]:.3f} selector",
             BandSelectTransformer(freq_band=band),

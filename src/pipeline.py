@@ -325,14 +325,17 @@ if __name__ == "__main__":
         )
     ]
 
-    coherence_fun = partial(coherence_matrix, nperseg=10)
-    coherence_fun.__name__ = "coherence_fun"
+    
     # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
     # metric_funs = [kl_divergence_matrix]
-    metric_funs = [coherence_fun]
+    
 
     f = open(Path("./likelihood_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
+        coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
+        coherence_fun.__name__ = "coherence_fun"
+        metric_funs = [coherence_fun]
+
         print(f"{band=}", file=f)
         band_component = (
             f"{band[0]:.3f}-{band[1]:.3f} selector",

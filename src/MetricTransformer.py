@@ -142,7 +142,7 @@ def mae_matrix(P):
     return mae
 
 
-def coherence_matrix(P, fs=1.0, nperseg=None):
+def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
     """
     Compute the coherence between all pairs of distributions
     in a 2D array P of shape (num_langs, num_samples),
@@ -156,6 +156,10 @@ def coherence_matrix(P, fs=1.0, nperseg=None):
         Sampling frequency of the signals. Default is 1.0.
     nperseg : int, optional
         Length of each segment for coherence calculation. Default is None (uses scipy's default).
+    freq_band : tuple, optional
+        Frequency band to filter coherence calculation (min_freq, max_freq) as a proportion of Nyquist frequency.
+        For example, (0.4, 0.5) will only use frequencies between 40% and 50% of the Nyquist frequency.
+        Default is None (uses all frequencies).
         
     Returns
     -------
@@ -169,9 +173,18 @@ def coherence_matrix(P, fs=1.0, nperseg=None):
         
         for i in range(num_langs):
             for j in range(num_langs):
-                # Calculate coherence between signals
+                # Calculate coherence between signals using cached function
                 f, Cxy = coherence(P[i], P[j], fs=fs, nperseg=nperseg)
-                # Take mean of coherence across all frequencies
+                
+                # Filter frequency band if specified
+                if freq_band is not None:
+                    nyquist = fs / 2
+                    min_freq = freq_band[0] * nyquist
+                    max_freq = freq_band[1] * nyquist
+                    mask = (f >= min_freq) & (f <= max_freq)
+                    Cxy = Cxy[mask]
+                
+                # Take mean of coherence across selected frequencies
                 coherence_mat[i, j] = np.mean(Cxy)
                 
         return coherence_mat
@@ -192,8 +205,16 @@ def coherence_matrix(P, fs=1.0, nperseg=None):
                 # Get all signals for language j
                 sigs_j = P[j]  # shape: (num_tokens, num_samples)
                 
-                # Calculate coherence for all token positions at once
-                _, Cxy = coherence(sigs_i, sigs_j, fs=fs, nperseg=nperseg)
+                # Calculate coherence for all token positions at once using cached function
+                f, Cxy = coherence(sigs_i, sigs_j, fs=fs, nperseg=nperseg)
+                
+                # Filter frequency band if specified
+                if freq_band is not None:
+                    nyquist = fs / 2
+                    min_freq = freq_band[0] * nyquist
+                    max_freq = freq_band[1] * nyquist
+                    mask = (f >= min_freq) & (f <= max_freq)
+                    Cxy = Cxy[:, mask]
                 
                 # Cxy shape: (num_tokens, n_freqs)
                 # Take mean across frequencies for each token
