@@ -9,7 +9,6 @@ signal = "embedding"
 # Read the input data from a file (replace 'your_file.txt' with the actual file path)
 file_path = f"{signal}_output.txt"
 
-
 def parse_multiple_runs(file_path):
     # Initialize a dictionary to hold data for each run
     runs_data = {}
