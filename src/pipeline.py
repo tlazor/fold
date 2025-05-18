@@ -250,7 +250,7 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
 
     return df
 
-
+from langcodes import standardize_tag
 def get_langs(use_bible=False):
     if use_bible:
         langs = ["en"]
@@ -268,6 +268,21 @@ def get_langs(use_bible=False):
         langs.sort()
     else:
         langs = constants.XNLI_LANGUAGES
+    bert_langs_2l = []
+        
+    for lang in constants.BERT_MULTILINGUAL_LANGS:
+        try:
+            lang_2l = langcodes.Language.find_name('language', lang).language
+            if lang_2l is not None:
+                bert_langs_2l.append(lang_2l)
+        except LookupError as e:
+            print(f"Language not found in langcodes: {lang}-{e}")
+            continue
+
+    langs = [lang for lang in langs if lang in bert_langs_2l]
+    langs_removed = [lang for lang in langs if lang not in bert_langs_2l]
+    # print(f"Filtered langs: {langs}")
+    print(f"Removed langs: {langs_removed}") if langs_removed else None
     return langs
 
 
@@ -306,6 +321,7 @@ if __name__ == "__main__":
         freq_bands = [(0, 1)]
 
     langs = get_langs(use_bible)
+    exit()
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
         if use_bible
