@@ -374,3 +374,4 @@ if __name__ == "__main__":
             print(metric_transformer.name, output.shape, file=f)
 
             analyze_output(output, langs, f=f)
+    f.close()
