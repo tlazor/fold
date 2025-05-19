@@ -4,6 +4,7 @@ from joblib import Memory
 from sklearn.pipeline import Pipeline
 import torch
 import numpy as np
+from transformers import AutoTokenizer
 
 from BibleTransformer import BibleTransformer
 from EmbedTransformer import EmbedTransformer
@@ -41,18 +42,18 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    from transformers import AutoTokenizer
-
-    mask_token_id = AutoTokenizer.from_pretrained(
-        "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
-    ).mask_token_id
-
     use_bible = True
     use_spectra = True
     straight_spectra = False
+    use_bert = True
+    model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+
+    mask_token_id = AutoTokenizer.from_pretrained(
+        model_name, clean_up_tokenization_spaces=True
+    ).mask_token_id
     # layers = range(1, 12)
     layers = [12]
-    num_bands = 10
+    num_bands = 1
     if num_bands > 1:
         beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
         freq_bands = zip(
@@ -66,7 +67,7 @@ if __name__ == "__main__":
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
         if use_bible
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
-        ("tokenize", TokenTransform()),
+        ("tokenize", TokenTransform(model_name=model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
     ]
     spectra_component = [
@@ -91,7 +92,7 @@ if __name__ == "__main__":
 
         coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
         coherence_fun.__name__ = "coherence_fun"
-        metric_funs = [coherence_fun]
+        metric_funs = [compute_overlaps, kl_divergence_matrix, coherence_fun]
 
         band_component = (
             f"{band[0]:.3f}-{band[1]:.3f} selector",
@@ -109,7 +110,7 @@ if __name__ == "__main__":
             for layer in layers:
                 embed_component = (
                     "embeddings",
-                    EmbedTransformer(mask_token_id=mask_token_id, layer=layer),
+                    EmbedTransformer(mask_token_id=mask_token_id, layer=layer, model_name=model_name),
                 )
 
                 pipeline = Pipeline(

@@ -6,6 +6,7 @@ import torch
 from scipy.stats import pearsonr, spearmanr
 from rich.progress import track
 from functools import partial
+from transformers import AutoTokenizer
 
 import pandas as pd
 
@@ -301,15 +302,15 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    from transformers import AutoTokenizer
-
-    mask_token_id = AutoTokenizer.from_pretrained(
-        "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
-    ).mask_token_id
-
     use_bible = True
     use_spectra = True
     straight_spectra = False
+    use_bert = True
+    model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+
+    mask_token_id = AutoTokenizer.from_pretrained(
+        model_name, clean_up_tokenization_spaces=True
+    ).mask_token_id
     # layers = range(1, 12)
     num_bands = 1
     if num_bands > 1:
@@ -321,14 +322,13 @@ if __name__ == "__main__":
         freq_bands = [(0, 1)]
 
     langs = get_langs(use_bible)
-    exit()
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
         if use_bible
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
-        ("tokenize", TokenTransform()),
+        ("tokenize", TokenTransform(model_name=model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
-        ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
+        ("est_likelihood", LikelihoodEstimator(model_name=model_name, mask_token_id=mask_token_id)),
     ]
 
     spectra_component = [
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     for band in freq_bands:
         coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
         coherence_fun.__name__ = "coherence_fun"
-        metric_funs = [coherence_fun]
+        metric_funs = [compute_overlaps, kl_divergence_matrix, coherence_fun]
 
         print(f"{band=}", file=f)
         band_component = (
