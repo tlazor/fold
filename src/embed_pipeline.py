@@ -97,6 +97,8 @@ if __name__ == "__main__":
     # metric_funs = [kl_divergence_matrix]
     short_model_name = "bert" if use_bert else "xlmr"
     f = open(Path(f"./{short_model_name}_embedding_output.txt"), "w+", encoding="utf-8")
+    # print config options to file
+    print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}", file=f)
     for band in freq_bands:
         print(f"{band=}", file=f)
 

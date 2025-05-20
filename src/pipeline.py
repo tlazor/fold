@@ -74,6 +74,10 @@ def calculate_correlations(dataframes):
     all_correlations = []
 
     for df_name, df in dataframes.items():
+        # Check if df has at least 2 non-NA pairs
+        if df.dropna().shape[0] < 2:
+            print(f"{df_name=} has less than 2 non-NA pairs")
+            continue
         for corr_name, corr_func in [("pearson", pearsonr), ("spearman", spearmanr)]:
             corr = df.corr(method=lambda x, y: corr_func(x, y)[0])
             pvals = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(
@@ -194,6 +198,11 @@ def analyze_output(output, langs, f=None):
         index=langs,
         columns=langs,
     )
+    # Diagonal values are 1, so the correlation is maybe suspect when including them
+    # Set all diagonals except first to NA
+    for i in range(1, len(langs)):
+        xnli_df.iloc[i, i] = np.nan
+    # print(f"{xnli_df=}")
 
     en_source_distances = np.nanmedian(output, axis=0)[en_index]
     df_fsi = pd.DataFrame(columns=["lang", "fsi", "fold"])
@@ -271,7 +280,7 @@ def get_langs(use_bible=False, use_un6=False, use_bert=True):
         langs = constants.UN6_LANGS
     else:
         langs = constants.XNLI_LANGUAGES
-    bert_langs_2l = []
+    model_langs_2l = []
     print(f"{len(langs)=}, {langs=}")
     model_langs = constants.BERT_MULTILINGUAL_LANGS if use_bert else constants.XLMR_LANGS
     for lang in model_langs:
@@ -282,18 +291,20 @@ def get_langs(use_bible=False, use_un6=False, use_bert=True):
             else:
                 lang_2l = langcodes.Language.find_name('language', lang).language
             if lang_2l is not None:
-                bert_langs_2l.append(lang_2l)
+                model_langs_2l.append(lang_2l)
             else:
                 print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}")
         except LookupError as e:
             print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}-{e}")
             continue
-
-    langs = [lang for lang in langs if lang in bert_langs_2l]
-    langs_removed = [lang for lang in langs if lang not in bert_langs_2l]
-    print(f"langs after filtering: {len(langs)=}, {langs=}")
+    
+    # Filter out languages that are not in the model
+    filtered_langs = [lang for lang in langs if lang in model_langs_2l]
+    # Get languages that were removed
+    langs_removed = [lang for lang in langs if lang not in model_langs_2l]
+    print(f"Langs: {len(filtered_langs)=}, {filtered_langs=}")
     print(f"Removed langs: {langs_removed}") if langs_removed else None
-    return langs
+    return filtered_langs
 
 
 if __name__ == "__main__":
@@ -318,11 +329,11 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    use_bible = False
-    use_un6 = True
+    use_bible = True
+    use_un6 = False
     use_spectra = True
     straight_spectra = False
-    use_bert = False 
+    use_bert = True 
     model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
 
     cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
@@ -375,6 +386,8 @@ if __name__ == "__main__":
     f = None
     try:
         f = open(Path(f"./{short_model_name}_likelihood_output.txt"), "w+", encoding="utf-8")
+        # print config options to file
+        print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}", file=f)
         for band in freq_bands:
             coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
             coherence_fun.__name__ = "coherence_fun"
