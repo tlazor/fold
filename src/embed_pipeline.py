@@ -62,7 +62,10 @@ if __name__ == "__main__":
     else:
         freq_bands = [(0, 1)]
 
-    langs = get_langs(use_bible)
+    # print config options
+    print(f"{use_bible=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
+
+    langs = get_langs(use_bible, use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
         if use_bible
@@ -85,8 +88,8 @@ if __name__ == "__main__":
 
     # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
     # metric_funs = [kl_divergence_matrix]
-
-    f = open(Path("./embedding_output.txt"), "w+", encoding="utf-8")
+    short_model_name = "bert" if use_bert else "xlmr"
+    f = open(Path(f"./{short_model_name}_embedding_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
         print(f"{band=}", file=f)
 

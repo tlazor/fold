@@ -251,8 +251,7 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
 
     return df
 
-from langcodes import standardize_tag
-def get_langs(use_bible=False):
+def get_langs(use_bible=False, use_bert=True):
     if use_bible:
         langs = ["en"]
         for lang_2l in list(constants.FSI_SCALE.keys()):
@@ -270,19 +269,26 @@ def get_langs(use_bible=False):
     else:
         langs = constants.XNLI_LANGUAGES
     bert_langs_2l = []
-        
-    for lang in constants.BERT_MULTILINGUAL_LANGS:
+    print(f"{len(langs)=}, {langs=}")
+    model_langs = constants.BERT_MULTILINGUAL_LANGS if use_bert else constants.XLMR_LANGS
+    for lang in model_langs:
         try:
-            lang_2l = langcodes.Language.find_name('language', lang).language
+            # BERT supports "Norwegian (Bokmal)" and "Norwegian (Nynorsk)" but langcodes doesn't
+            if lang == "Norwegian (Bokmal)":
+                lang_2l = "no"
+            else:
+                lang_2l = langcodes.Language.find_name('language', lang).language
             if lang_2l is not None:
                 bert_langs_2l.append(lang_2l)
+            else:
+                print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}")
         except LookupError as e:
-            print(f"Language not found in langcodes: {lang}-{e}")
+            print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}-{e}")
             continue
 
     langs = [lang for lang in langs if lang in bert_langs_2l]
     langs_removed = [lang for lang in langs if lang not in bert_langs_2l]
-    # print(f"Filtered langs: {langs}")
+    print(f"langs after filtering: {len(langs)=}, {langs=}")
     print(f"Removed langs: {langs_removed}") if langs_removed else None
     return langs
 
@@ -321,7 +327,11 @@ if __name__ == "__main__":
     else:
         freq_bands = [(0, 1)]
 
-    langs = get_langs(use_bible)
+    # print config options
+    print(f"{use_bible=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
+
+
+    langs = get_langs(use_bible, use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
         if use_bible
@@ -345,8 +355,8 @@ if __name__ == "__main__":
     # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
     # metric_funs = [kl_divergence_matrix]
     
-
-    f = open(Path("./likelihood_output.txt"), "w+", encoding="utf-8")
+    short_model_name = "bert" if use_bert else "xlmr"
+    f = open(Path(f"./{short_model_name}_likelihood_output.txt"), "w+", encoding="utf-8")
     for band in freq_bands:
         coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
         coherence_fun.__name__ = "coherence_fun"

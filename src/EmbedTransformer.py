@@ -88,6 +88,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
             - max_len_for_that_sample = max token length among the language texts for that sample
         """
         model = AutoModel.from_pretrained(self.model_name)
+        print(f"Using model: {model.__class__.__name__}")
 
         model.to(fold_globals.DEVICE)
         model.eval()
