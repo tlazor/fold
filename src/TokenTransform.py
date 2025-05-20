@@ -30,7 +30,7 @@ class TokenTransform(BaseEstimator, TransformerMixin):
         memory = Memory(cachedir, verbose=0)
 
         @memory.cache
-        def tokenize(text: str, max_tokens: int = 64) -> list:
+        def tokenize(model_name: str, text: str, max_tokens: int = 64) -> list:
             encoded = tokenizer(
                 text,
                 max_length=max_tokens,
@@ -50,7 +50,7 @@ class TokenTransform(BaseEstimator, TransformerMixin):
             token_arrays = []
             for j in range(n_features):
                 text = X.iloc[i, j]
-                token_arrays.append(tokenize(text))
+                token_arrays.append(tokenize(self.model_name, text))
 
             results.append(token_arrays)
 

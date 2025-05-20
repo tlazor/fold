@@ -294,8 +294,15 @@ def get_langs(use_bible=False, use_bert=True):
 
 
 if __name__ == "__main__":
-    cachedir = Path(".cache/joblib/tmp/coherence_pipeline")
-    pipeline_memory = Memory(cachedir, verbose=0)
+    # Clear CUDA cache and set memory management
+    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        # Set memory allocation strategy
+        torch.cuda.set_per_process_memory_fraction(0.8)  # Use 80% of available GPU memory
+        torch.cuda.memory.set_per_process_memory_fraction(0.8)
+        # Enable memory efficient attention
+        torch.backends.cuda.enable_flash_sdp(True)
+        torch.backends.cuda.enable_mem_efficient_sdp(True)
 
     torch.set_float32_matmul_precision("high")
     torch._dynamo.config.capture_scalar_outputs = True
@@ -311,8 +318,11 @@ if __name__ == "__main__":
     use_bible = True
     use_spectra = True
     straight_spectra = False
-    use_bert = True
+    use_bert = False
     model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+
+    cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
+    pipeline_memory = Memory(cachedir, verbose=0)
 
     mask_token_id = AutoTokenizer.from_pretrained(
         model_name, clean_up_tokenization_spaces=True
@@ -356,32 +366,36 @@ if __name__ == "__main__":
     # metric_funs = [kl_divergence_matrix]
     
     short_model_name = "bert" if use_bert else "xlmr"
-    f = open(Path(f"./{short_model_name}_likelihood_output.txt"), "w+", encoding="utf-8")
-    for band in freq_bands:
-        coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
-        coherence_fun.__name__ = "coherence_fun"
-        metric_funs = [compute_overlaps, kl_divergence_matrix, coherence_fun]
+    f = None
+    try:
+        f = open(Path(f"./{short_model_name}_likelihood_output.txt"), "w+", encoding="utf-8")
+        for band in freq_bands:
+            coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
+            coherence_fun.__name__ = "coherence_fun"
+            metric_funs = [compute_overlaps, kl_divergence_matrix, coherence_fun]
 
-        print(f"{band=}", file=f)
-        band_component = (
-            f"{band[0]:.3f}-{band[1]:.3f} selector",
-            BandSelectTransformer(freq_band=band),
-        )
-        for fun in metric_funs:
-            metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun, verbose=True)
-            metric_component = (metric_transformer.name, metric_transformer)
-            pipeline = Pipeline(
-                likelihood_pipeline_components
-                + (spectra_component if use_spectra and fun != coherence_fun else [])
-                + ([band_component] if fun != coherence_fun else [])
-                + [metric_component],
-                memory=pipeline_memory,
-                verbose=True,
+            print(f"{band=}", file=f)
+            band_component = (
+                f"{band[0]:.3f}-{band[1]:.3f} selector",
+                BandSelectTransformer(freq_band=band),
             )
+            for fun in metric_funs:
+                metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun, verbose=True)
+                metric_component = (metric_transformer.name, metric_transformer)
+                pipeline = Pipeline(
+                    likelihood_pipeline_components
+                    + (spectra_component if use_spectra and fun != coherence_fun else [])
+                    + ([band_component] if fun != coherence_fun else [])
+                    + [metric_component],
+                    memory=pipeline_memory,
+                    verbose=True,
+                )
 
-            # pass None because TSVToDataFrame ignores X and reads from file_path
-            output = pipeline.fit_transform(None)
-            print(metric_transformer.name, output.shape, file=f)
+                # pass None because TSVToDataFrame ignores X and reads from file_path
+                output = pipeline.fit_transform(None)
+                print(metric_transformer.name, output.shape, file=f)
 
-            analyze_output(output, langs, f=f)
-    f.close()
+                analyze_output(output, langs, f=f)
+    finally:
+        if f is not None:
+            f.close()

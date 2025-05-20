@@ -21,7 +21,7 @@ memory = Memory(cachedir, verbose=0)
 @memory.cache(ignore=["model", "chunk_size"])
 @torch.compile
 def get_token_likelihood_vec(
-    model: nn.Module, token_ids, attention_mask, mask_token_id, chunk_size: int = 10
+    model: nn.Module, model_name: str, token_ids, attention_mask, mask_token_id, chunk_size: int = 10
 ) -> list:
     """
     Compute the likelihood (probability) of each non-special token in `text`
@@ -108,11 +108,13 @@ def get_token_likelihood_vec(
                 torch.arange(end - start, device=device), chunk_original_ids
             ]
 
-            # Convert to probabilities
-            chunk_probs = chunk_log_probs.exp()
+            # Convert to probabilities and move to CPU immediately
+            chunk_probs = chunk_log_probs.exp().cpu()
+            all_likelihoods.append(chunk_probs)
 
-            # Store in a list (still on GPU). Move to CPU if you want to keep GPU free.
-            all_likelihoods.append(chunk_probs.cpu())
+            # Clear GPU cache after each chunk
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     # 5) Concatenate all chunk results
     all_likelihoods = torch.cat(all_likelihoods, dim=0)  # shape: (num_normal_tokens,)
@@ -172,7 +174,7 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
                 # print(f"{attention_mask=}")
                 # exit()
                 token_likelihoods = get_token_likelihood_vec(
-                    model, input_ids, attention_mask, self.mask_token_id
+                    model, self.model_name, input_ids, attention_mask, self.mask_token_id
                 )
                 token_arrays.append(token_likelihoods)
 

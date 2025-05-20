@@ -21,7 +21,7 @@ memory = Memory(cachedir, verbose=0)
 @memory.cache(ignore=["model"])
 @torch.compile
 def get_token_embeddings(
-    model: nn.Module, input_ids, attention_mask, layer
+    model: nn.Module, model_name: str, input_ids, attention_mask, layer
 ) -> torch.Tensor:
     """
     Compute the likelihood (probability) of each non-special token in `text`
@@ -102,7 +102,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
                 # print(f"{attention_mask=}")
                 # exit()
                 last_hidden_state = get_token_embeddings(
-                    model, input_ids, attention_mask, self.layer
+                    model, self.model_name, input_ids, attention_mask, self.layer
                 ).cpu()
 
                 token_arrays.append(last_hidden_state)

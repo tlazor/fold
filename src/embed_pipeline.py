@@ -28,8 +28,7 @@ from pipeline import analyze_output, get_langs
 from functools import partial
 
 if __name__ == "__main__":
-    cachedir = Path(".cache/joblib/tmp/output_coherence")
-    pipeline_memory = Memory(cachedir, verbose=0)
+    torch.cuda.empty_cache()
 
     torch.set_float32_matmul_precision("high")
     torch._dynamo.config.capture_scalar_outputs = True
@@ -45,8 +44,11 @@ if __name__ == "__main__":
     use_bible = True
     use_spectra = True
     straight_spectra = False
-    use_bert = True
+    use_bert = False
     model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+
+    cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
+    pipeline_memory = Memory(cachedir, verbose=0)
 
     mask_token_id = AutoTokenizer.from_pretrained(
         model_name, clean_up_tokenization_spaces=True
@@ -127,7 +129,7 @@ if __name__ == "__main__":
                     + ([band_component] if fun != coherence_fun else [])
                     + [metric_component],
                     memory=pipeline_memory,
-                    verbose=False,
+                    verbose=True,
                 )
 
                 # pass None because TSVToDataFrame ignores X and reads from file_path
