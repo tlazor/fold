@@ -132,6 +132,7 @@ XLMR_LANGS = [
     "Vietnamese", "Welsh", "Western Frisian", "Xhosa", "Yiddish"
 ]
 
+UN6_LANGS = ["ar", "en", "es", "fr", "ru", "zh"]
 
 # languages in XNLI dataset
 XNLI_LANGUAGES = [

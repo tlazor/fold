@@ -22,6 +22,7 @@ from SampleTokens import SampleTokens
 from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
+from Un6Transformer import Un6Transformer
 import constants
 import fold_globals
 from pipeline import analyze_output, get_langs
@@ -41,10 +42,12 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    use_bible = True
+    use_bible = False
+    use_un6 = True
     use_spectra = True
     straight_spectra = False
     use_bert = False
+    
     model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
 
     cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
@@ -65,12 +68,14 @@ if __name__ == "__main__":
         freq_bands = [(0, 1)]
 
     # print config options
-    print(f"{use_bible=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
+    print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
 
-    langs = get_langs(use_bible, use_bert)
+    langs = get_langs(use_bible, use_un6, use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
         if use_bible
+        else ("load_un6", Un6Transformer(Path("data/6way"), langs=langs, nrows=2000))
+        if use_un6
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform(model_name=model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),

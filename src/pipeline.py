@@ -26,6 +26,7 @@ from MetricTransformer import (
     kl_divergence_matrix,
     mae_matrix,
 )
+from Un6Transformer import Un6Transformer
 
 import fold_globals
 import constants
@@ -251,7 +252,7 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
 
     return df
 
-def get_langs(use_bible=False, use_bert=True):
+def get_langs(use_bible=False, use_un6=False, use_bert=True):
     if use_bible:
         langs = ["en"]
         for lang_2l in list(constants.FSI_SCALE.keys()):
@@ -266,6 +267,8 @@ def get_langs(use_bible=False, use_bert=True):
             # else:
             #     print(f"Excluding: {lang_2l}/{lang_name}")
         langs.sort()
+    elif use_un6:
+        langs = constants.UN6_LANGS
     else:
         langs = constants.XNLI_LANGUAGES
     bert_langs_2l = []
@@ -315,10 +318,11 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    use_bible = True
+    use_bible = False
+    use_un6 = True
     use_spectra = True
     straight_spectra = False
-    use_bert = False
+    use_bert = False 
     model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
 
     cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
@@ -338,13 +342,15 @@ if __name__ == "__main__":
         freq_bands = [(0, 1)]
 
     # print config options
-    print(f"{use_bible=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
+    print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
 
 
-    langs = get_langs(use_bible, use_bert)
+    langs = get_langs(use_bible, use_un6, use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
         if use_bible
+        else ("load_un6", Un6Transformer(Path("data/6way"), langs=langs, nrows=2000))
+        if use_un6
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform(model_name=model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
