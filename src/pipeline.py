@@ -1,3 +1,5 @@
+from datetime import datetime
+from itertools import combinations
 from pathlib import Path
 from joblib import Memory
 import langcodes
@@ -7,6 +9,7 @@ from scipy.stats import pearsonr, spearmanr
 from rich.progress import track
 from functools import partial
 from transformers import AutoTokenizer
+from scipy.stats import pearsonr, spearmanr, rankdata
 
 import pandas as pd
 
@@ -126,6 +129,60 @@ def calculate_correlations(dataframes):
     return out
 
 
+def calculate_correlations_new(dataframes):
+    all_correlations = []
+
+    for df_name, df in dataframes.items():
+        if df.dropna().shape[0] < 2:
+            print(f"{df_name=} has less than 2 non-NA pairs")
+            continue
+
+        for i, row in enumerate(df.columns):
+            for j in range(i + 1, len(df.columns)):
+                col = df.columns[j]
+                x = df[row]
+                y = df[col]
+                valid = x.notna() & y.notna()
+                x = pd.to_numeric(x[valid], errors='coerce')
+                y = pd.to_numeric(y[valid], errors='coerce')
+
+                if len(x) < 2:
+                    continue
+
+                # Pearson correlation
+                p_coef, p_pval = pearsonr(x, y)
+                x_mean, y_mean = x.mean(), y.mean()
+                pointwise_pearson = ((x - x_mean) * (y - y_mean))
+
+                # Spearman correlation
+                s_coef, s_pval = spearmanr(x, y)
+
+                # Concordant and discordant pairs
+                rx = rankdata(x)
+                ry = rankdata(y)
+                num_concordant = 0
+                num_discordant = 0
+                for a, b in combinations(range(len(rx)), 2):
+                    concordant = (rx[a] - rx[b]) * (ry[a] - ry[b]) > 0
+                    discordant = (rx[a] - rx[b]) * (ry[a] - ry[b]) < 0
+                    num_concordant += concordant
+                    num_discordant += discordant
+
+                all_correlations.append({
+                    "metric": f"{col}",
+                    "p_coef": p_coef,
+                    "p_pval": p_pval,
+                    "s_coef": s_coef,
+                    "s_pval": s_pval,
+                    "num_points": len(x),
+                    "pearson_contrib": pointwise_pearson,
+                    "num_concordant": num_concordant,
+                    "num_discordant": num_discordant
+                })
+
+    return pd.DataFrame(all_correlations)
+
+
 def get_full_mut_int():
     all_labels = (
         constants.GERMANIC_INTELLIGABILITY.index.union(
@@ -198,9 +255,9 @@ def analyze_output(output, langs, f=None):
         index=langs,
         columns=langs,
     )
-    # Diagonal values are 1, so the correlation is maybe suspect when including them
-    # Set all diagonals except first to NA
-    for i in range(1, len(langs)):
+    # Diagonal values are 1, so the correlation is less useful when including them
+    # Set all diagonals to NA
+    for i in range(0, len(langs)):
         xnli_df.iloc[i, i] = np.nan
     # print(f"{xnli_df=}")
 
@@ -229,12 +286,55 @@ def analyze_output(output, langs, f=None):
         "fsi": df_fsi,
         "pho_sim": df_pho_sim,
     }
-    results_long = calculate_correlations(dataframes)
+    results_long = calculate_correlations_new(dataframes)
     print(
         results_long.to_markdown(index=False, floatfmt=".3f", tablefmt="github"),
         file=f,
         flush=True,
     )
+
+    analyze_pearson_contrib(results_long)
+
+ 
+def analyze_pearson_contrib(results_long):
+    # Get pearson contrib
+    df = results_long["pearson_contrib"]
+    
+    # iterate through each metric in pearson_contrib (pd.Series)
+    for index, metric_pearson_contrib in df.items():
+        # Get metric name
+        metric_name = results_long.loc[index, "metric"]
+        print(f"{metric_name=}")
+        
+        langs = set()
+        if isinstance(metric_pearson_contrib.index[0], tuple):
+            for index_langs in metric_pearson_contrib.index:
+                langs.update(index_langs)
+
+            langs = sorted(langs)
+                
+            # Initialize a square matrix
+            matrix = pd.DataFrame(np.nan, index=langs, columns=langs)
+
+            for index_langs in metric_pearson_contrib.index:
+                matrix.loc[index_langs] = metric_pearson_contrib[index_langs]
+        else:
+            # if it's not a tuple, it's a single language like FSI scale
+            # TODO: handle FSI scale
+            continue
+
+        print(f"{matrix=}")
+
+        plt.figure(figsize=(10, 8))
+        plt.imshow(matrix, cmap='coolwarm', interpolation='nearest')
+        plt.colorbar(label='Score')
+        plt.xticks(ticks=np.arange(len(matrix.columns)), labels=matrix.columns, rotation=90)
+        plt.yticks(ticks=np.arange(len(matrix.index)), labels=matrix.index)
+        plt.title(f"{metric_name} Pearson Contrib (coef={results_long.loc[index, 'p_coef']:.3f}, pval={results_long.loc[index, 'p_pval']:.3f})")
+        plt.tight_layout()
+        current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
+        plt.savefig(f"{metric_name}_pearson_contrib_{current_time}.png")
+        plt.close()
 
 
 def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
@@ -256,8 +356,13 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     df_b_sub = baseline_df.loc[intersection, intersection]
 
     series_a_sub = df_a_sub.values.flatten()
+    # Store row and column indices using actual DataFrame labels
+    row_labels = df_a_sub.index
+    col_labels = df_a_sub.columns
+    flattened_indices = [(row_labels[i // len(col_labels)], col_labels[i % len(col_labels)]) for i in range(len(series_a_sub))]
+    # print(f"{flattened_indices=}")
     series_b_sub = df_b_sub.values.flatten()
-    df = pd.DataFrame({"fold": series_a_sub, baseline_name: series_b_sub})
+    df = pd.DataFrame({"fold": series_a_sub, baseline_name: series_b_sub}, index=flattened_indices)
 
     return df
 
@@ -385,7 +490,8 @@ if __name__ == "__main__":
     short_model_name = "bert" if use_bert else "xlmr"
     f = None
     try:
-        f = open(Path(f"./{short_model_name}_likelihood_output.txt"), "w+", encoding="utf-8")
+        prefix = "bible" if use_bible else "un6" if use_un6 else "xnli"
+        f = open(Path(f"./{prefix}_{short_model_name}_likelihood_output.txt"), "w+", encoding="utf-8")
         # print config options to file
         print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}", file=f)
         for band in freq_bands:
