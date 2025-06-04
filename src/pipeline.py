@@ -3,6 +3,7 @@ from itertools import combinations
 from pathlib import Path
 from joblib import Memory
 import langcodes
+from matplotlib.colors import TwoSlopeNorm
 from sklearn.pipeline import Pipeline
 import torch
 from scipy.stats import pearsonr, spearmanr
@@ -152,7 +153,9 @@ def calculate_correlations_new(dataframes):
                 # Pearson correlation
                 p_coef, p_pval = pearsonr(x, y)
                 x_mean, y_mean = x.mean(), y.mean()
-                pointwise_pearson = ((x - x_mean) * (y - y_mean))
+                pointwise_pearson = ((x - x_mean) * (y - y_mean)) / np.sqrt(((x - x_mean) ** 2).sum() * ((y - y_mean) ** 2).sum())
+
+                print(f"{pointwise_pearson=}")
 
                 # Spearman correlation
                 s_coef, s_pval = spearmanr(x, y)
@@ -323,10 +326,13 @@ def analyze_pearson_contrib(results_long):
             # TODO: handle FSI scale
             continue
 
-        print(f"{matrix=}")
+        # Compute normalization to center at 0
+        vmin = np.min(matrix.values)
+        vmax = np.max(matrix.values)
+        norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
 
         plt.figure(figsize=(10, 8))
-        plt.imshow(matrix, cmap='coolwarm', interpolation='nearest')
+        plt.imshow(matrix, cmap='coolwarm', norm=norm, interpolation='nearest')
         plt.colorbar(label='Score')
         plt.xticks(ticks=np.arange(len(matrix.columns)), labels=matrix.columns, rotation=90)
         plt.yticks(ticks=np.arange(len(matrix.index)), labels=matrix.index)
