@@ -155,7 +155,7 @@ def calculate_correlations_new(dataframes):
                 x_mean, y_mean = x.mean(), y.mean()
                 pointwise_pearson = ((x - x_mean) * (y - y_mean)) / np.sqrt(((x - x_mean) ** 2).sum() * ((y - y_mean) ** 2).sum())
 
-                print(f"{pointwise_pearson=}")
+                # print(f"{pointwise_pearson=}")
 
                 # Spearman correlation
                 s_coef, s_pval = spearmanr(x, y)
@@ -307,7 +307,6 @@ def analyze_pearson_contrib(results_long):
     for index, metric_pearson_contrib in df.items():
         # Get metric name
         metric_name = results_long.loc[index, "metric"]
-        print(f"{metric_name=}")
         
         langs = set()
         if isinstance(metric_pearson_contrib.index[0], tuple):
@@ -326,22 +325,108 @@ def analyze_pearson_contrib(results_long):
             # TODO: handle FSI scale
             continue
 
-        # Compute normalization to center at 0
-        vmin = np.min(matrix.values)
-        vmax = np.max(matrix.values)
-        norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+        plot_pearson_contrib(matrix, metric_name, results_long, index)
+        analyze_wikisize(matrix, metric_name, results_long, index)
 
-        plt.figure(figsize=(10, 8))
-        plt.imshow(matrix, cmap='coolwarm', norm=norm, interpolation='nearest')
-        plt.colorbar(label='Score')
-        plt.xticks(ticks=np.arange(len(matrix.columns)), labels=matrix.columns, rotation=90)
-        plt.yticks(ticks=np.arange(len(matrix.index)), labels=matrix.index)
-        plt.title(f"{metric_name} Pearson Contrib (coef={results_long.loc[index, 'p_coef']:.3f}, pval={results_long.loc[index, 'p_pval']:.3f})")
-        plt.tight_layout()
-        current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
-        plt.savefig(f"{metric_name}_pearson_contrib_{current_time}.png")
-        plt.close()
 
+def plot_pearson_contrib(matrix, metric_name, results_long, index):
+    # Compute normalization to center at 0
+    vmin = np.min(matrix.values)
+    vmax = np.max(matrix.values)
+    norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+
+    plt.figure(figsize=(10, 8))
+    plt.imshow(matrix, cmap='coolwarm', norm=norm, interpolation='nearest')
+    plt.colorbar(label='Score')
+    plt.xticks(ticks=np.arange(len(matrix.columns)), labels=matrix.columns, rotation=90)
+    plt.yticks(ticks=np.arange(len(matrix.index)), labels=matrix.index)
+    plt.title(f"{metric_name} Pearson Contrib (coef={results_long.loc[index, 'p_coef']:.3f}, pval={results_long.loc[index, 'p_pval']:.3f})")
+    plt.tight_layout()
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
+    plt.savefig(f"{metric_name}_pearson_contrib_{current_time}.png")
+    plt.close()
+
+
+def analyze_wikisize(matrix, metric_name, results_long, index):
+    # iterate through each language pair in matrix
+    size_df = pd.DataFrame()
+    for lang1 in matrix.index:
+        for lang2 in matrix.columns:
+            if lang1 == lang2:
+                continue
+            
+            # print(f"{lang1=}, {lang2=}")
+
+            lang1_size = constants.language_wikisize[lang1]
+            lang2_size = constants.language_wikisize[lang2]
+
+            min_size = min(lang1_size, lang2_size)
+            max_size = max(lang1_size, lang2_size)
+            mean_size = (lang1_size + lang2_size) / 2
+
+            # print(f"{lang1_size=} {lang2_size=}")
+
+            # get the pearson contrib for the two languages
+            pearson_contrib = matrix.loc[lang1, lang2]
+            # print(f"{pearson_contrib=}")
+
+            # Add contrib and wikisize to new dataframe
+            size_df = pd.concat([size_df, pd.DataFrame({"lang1_size": lang1_size, "lang2_size": lang2_size, "pearson_contrib": pearson_contrib, "min_size": min_size, "max_size": max_size, "mean_size": mean_size}, index=[index])])
+
+    # calculate the correlation for only pearson_contrib
+    pearson_corr = size_df[["min_size", "mean_size", "max_size"]].corrwith(size_df["pearson_contrib"])
+    spearman_corr = size_df[["min_size", "mean_size", "max_size"]].corrwith(size_df["pearson_contrib"], method="spearman")
+    print(f"{metric_name}\n{pd.concat([pearson_corr, spearman_corr], axis=1, keys=["pearson", "spearman"])}")
+
+    # create a scatter plot of pearson_contrib vs min_size
+    plt.figure(figsize=(10, 8))
+    plt.scatter(size_df["min_size"], size_df["pearson_contrib"])
+    plt.xlabel("Min Size")
+    plt.ylabel("Pearson Contrib")
+    plt.title(f"{metric_name} Pearson Contrib vs Min Size")
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
+    plt.savefig(f"{metric_name}_pearson_contrib_vs_min_size_{current_time}.png")
+    plt.close()
+
+    # analyze effect with english always as one of the languages
+    size_df = pd.DataFrame()
+
+    for lang1 in matrix.index:
+        for lang2 in matrix.columns:
+            if lang1 == lang2:
+                continue
+            if lang1 != "en" and lang2 != "en":
+                continue
+
+            lang1_size = constants.language_wikisize[lang1]
+            lang2_size = constants.language_wikisize[lang2]
+
+            min_size = min(lang1_size, lang2_size)
+
+            # get the pearson contrib for the two languages
+            pearson_contrib = matrix.loc[lang1, lang2]
+            # print(f"{pearson_contrib=}")
+
+            # Add contrib and wikisize to new dataframe
+            size_df = pd.concat([size_df, pd.DataFrame({"lang1_size": lang1_size, "lang2_size": lang2_size, "pearson_contrib": pearson_contrib, "min_size": min_size}, index=[index])])
+
+    # calculate the correlation for only pearson_contrib
+    pearson_corr = size_df[["min_size"]].corrwith(size_df["pearson_contrib"])
+    # print(f"{pearson_corr=}")
+    spearman_corr = size_df[["min_size"]].corrwith(size_df["pearson_contrib"], method="spearman")
+    # concat the two series
+    print(f"{metric_name}\n{pd.concat([pearson_corr, spearman_corr], axis=1, keys=["pearson", "spearman"])}")
+
+    # create a scatter plot of pearson_contrib vs min_size
+    plt.figure(figsize=(10, 8))
+    plt.scatter(size_df["min_size"], size_df["pearson_contrib"])
+    plt.xlabel("Min Size")
+    plt.ylabel("Pearson Contrib")
+    plt.title(f"{metric_name} Pearson Contrib vs Min Size")
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
+    plt.savefig(f"{metric_name}_pearson_contrib_english{current_time}.png")
+    plt.close()
+    
 
 def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     labels_a = xnli_df.index
