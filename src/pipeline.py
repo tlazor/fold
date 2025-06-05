@@ -225,7 +225,7 @@ def star_fmt(p: float) -> str:
 formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
 
 
-def analyze_output(output, langs, f=None):
+def analyze_output(output, langs, f=None, model_name=None):
     readable_names = [Language.make(language=lang).display_name() for lang in langs]
 
     # show_heatmap(np.average(output, axis=0), readable_names)
@@ -296,10 +296,10 @@ def analyze_output(output, langs, f=None):
         flush=True,
     )
 
-    analyze_pearson_contrib(results_long)
+    analyze_pearson_contrib(results_long, model_name)
 
  
-def analyze_pearson_contrib(results_long):
+def analyze_pearson_contrib(results_long, model_name):
     # Get pearson contrib
     df = results_long["pearson_contrib"]
     
@@ -326,7 +326,7 @@ def analyze_pearson_contrib(results_long):
             continue
 
         plot_pearson_contrib(matrix, metric_name, results_long, index)
-        analyze_wikisize(matrix, metric_name, results_long, index)
+        analyze_wikisize(matrix, metric_name, results_long, index, model_name)
 
 
 def plot_pearson_contrib(matrix, metric_name, results_long, index):
@@ -347,7 +347,7 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
     plt.close()
 
 
-def analyze_wikisize(matrix, metric_name, results_long, index):
+def analyze_wikisize(matrix, metric_name, results_long, index, model_name):
     # iterate through each language pair in matrix
     size_df = pd.DataFrame()
     for lang1 in matrix.index:
@@ -357,12 +357,19 @@ def analyze_wikisize(matrix, metric_name, results_long, index):
             
             # print(f"{lang1=}, {lang2=}")
 
-            lang1_size = constants.language_wikisize[lang1]
-            lang2_size = constants.language_wikisize[lang2]
+            if model_name == "bert-base-multilingual-cased":
+                lang1_size = constants.language_wikisize[lang1]
+                lang2_size = constants.language_wikisize[lang2]
+            elif model_name == "FacebookAI/xlm-roberta-base":
+                lang1_size = constants.XLMR_SIZE_LOG[lang1]
+                lang2_size = constants.XLMR_SIZE_LOG[lang2]
+            else:
+                raise ValueError(f"Model {model_name} not supported")
 
             min_size = min(lang1_size, lang2_size)
             max_size = max(lang1_size, lang2_size)
             mean_size = (lang1_size + lang2_size) / 2
+            diff_size = abs(lang1_size - lang2_size)
 
             # print(f"{lang1_size=} {lang2_size=}")
 
@@ -371,12 +378,10 @@ def analyze_wikisize(matrix, metric_name, results_long, index):
             # print(f"{pearson_contrib=}")
 
             # Add contrib and wikisize to new dataframe
-            size_df = pd.concat([size_df, pd.DataFrame({"lang1_size": lang1_size, "lang2_size": lang2_size, "pearson_contrib": pearson_contrib, "min_size": min_size, "max_size": max_size, "mean_size": mean_size}, index=[index])])
+            size_df = pd.concat([size_df, pd.DataFrame({"lang1_size": lang1_size, "lang2_size": lang2_size, "pearson_contrib": pearson_contrib, "min_size": min_size, "max_size": max_size, "mean_size": mean_size, "diff_size": diff_size}, index=[index])])
 
-    # calculate the correlation for only pearson_contrib
-    pearson_corr = size_df[["min_size", "mean_size", "max_size"]].corrwith(size_df["pearson_contrib"])
-    spearman_corr = size_df[["min_size", "mean_size", "max_size"]].corrwith(size_df["pearson_contrib"], method="spearman")
-    print(f"{metric_name}\n{pd.concat([pearson_corr, spearman_corr], axis=1, keys=["pearson", "spearman"])}")
+    pearson_and_spearman_df = calculate_coef_and_pval(size_df)
+    print(f"{metric_name} ({len(size_df['pearson_contrib'].dropna())})\n{pearson_and_spearman_df.to_markdown(floatfmt=".3f")}")
 
     # create a scatter plot of pearson_contrib vs min_size
     plt.figure(figsize=(10, 8))
@@ -386,6 +391,15 @@ def analyze_wikisize(matrix, metric_name, results_long, index):
     plt.title(f"{metric_name} Pearson Contrib vs Min Size")
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
     plt.savefig(f"{metric_name}_pearson_contrib_vs_min_size_{current_time}.png")
+    plt.close()
+    # create a scatter plot of pearson_contrib vs max_size
+    plt.figure(figsize=(10, 8))
+    plt.scatter(size_df["max_size"], size_df["pearson_contrib"])
+    plt.xlabel("Max Size")
+    plt.ylabel("Pearson Contrib")
+    plt.title(f"{metric_name} Pearson Contrib vs Max Size")
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
+    plt.savefig(f"{metric_name}_pearson_contrib_vs_max_size_{current_time}.png")
     plt.close()
 
     # analyze effect with english always as one of the languages
@@ -398,8 +412,14 @@ def analyze_wikisize(matrix, metric_name, results_long, index):
             if lang1 != "en" and lang2 != "en":
                 continue
 
-            lang1_size = constants.language_wikisize[lang1]
-            lang2_size = constants.language_wikisize[lang2]
+            if model_name == "bert-base-multilingual-cased":
+                lang1_size = constants.language_wikisize[lang1]
+                lang2_size = constants.language_wikisize[lang2]
+            elif model_name == "FacebookAI/xlm-roberta-base":
+                lang1_size = constants.XLMR_SIZE_LOG[lang1]
+                lang2_size = constants.XLMR_SIZE_LOG[lang2]
+            else:
+                raise ValueError(f"Model {model_name} not supported")
 
             min_size = min(lang1_size, lang2_size)
 
@@ -410,12 +430,8 @@ def analyze_wikisize(matrix, metric_name, results_long, index):
             # Add contrib and wikisize to new dataframe
             size_df = pd.concat([size_df, pd.DataFrame({"lang1_size": lang1_size, "lang2_size": lang2_size, "pearson_contrib": pearson_contrib, "min_size": min_size}, index=[index])])
 
-    # calculate the correlation for only pearson_contrib
-    pearson_corr = size_df[["min_size"]].corrwith(size_df["pearson_contrib"])
-    # print(f"{pearson_corr=}")
-    spearman_corr = size_df[["min_size"]].corrwith(size_df["pearson_contrib"], method="spearman")
-    # concat the two series
-    print(f"{metric_name}\n{pd.concat([pearson_corr, spearman_corr], axis=1, keys=["pearson", "spearman"])}")
+    pearson_and_spearman_df = calculate_coef_and_pval(size_df, cols=["min_size"])
+    print(f"{metric_name} ({len(size_df['pearson_contrib'].dropna())})\n{pearson_and_spearman_df.to_markdown(floatfmt=".3f")}")
 
     # create a scatter plot of pearson_contrib vs min_size
     plt.figure(figsize=(10, 8))
@@ -426,7 +442,34 @@ def analyze_wikisize(matrix, metric_name, results_long, index):
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
     plt.savefig(f"{metric_name}_pearson_contrib_english{current_time}.png")
     plt.close()
-    
+
+
+def calculate_coef_and_pval(size_df, cols=["min_size", "mean_size", "max_size", "diff_size"]):
+    results = []
+    # Loop through each column to correlate with 'pearson_contrib'
+    for col in cols:
+        x = size_df[col]
+        y = size_df["pearson_contrib"]
+
+        both_not_na = ~x.isna() & ~y.isna()
+        x = x[both_not_na]
+        y = y[both_not_na]
+
+        if len(x) < 2:
+            continue  # skip columns with too few data points
+
+        pearson_r, pearson_p = pearsonr(x, y)
+        spearman_r, spearman_p = spearmanr(x, y)
+
+        results.append({
+            "column": col,
+            "pearson_r": pearson_r,
+            "pearson_p": pearson_p,
+            "spearman_r": spearman_r,
+            "spearman_p": spearman_p,
+        })
+    return pd.DataFrame(results).set_index("column")
+
 
 def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     labels_a = xnli_df.index
@@ -611,7 +654,7 @@ if __name__ == "__main__":
                 output = pipeline.fit_transform(None)
                 print(metric_transformer.name, output.shape, file=f)
 
-                analyze_output(output, langs, f=f)
+                analyze_output(output, langs, f=f, model_name=model_name)
     finally:
         if f is not None:
             f.close()
