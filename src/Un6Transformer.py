@@ -40,7 +40,7 @@ class Un6Transformer(BaseEstimator, TransformerMixin):
         """
         # Construct filenames for each language
         filenames = [f"UNv1.0.6way.{lang}" for lang in self.langs]
-        
+
         # Open all files
         files = [
             open(self.file_path / filename, "r", encoding=self.encoding)
@@ -53,7 +53,7 @@ class Un6Transformer(BaseEstimator, TransformerMixin):
             # Strip whitespace from each line
             row = [line.strip() for line in line_tuple]
             aligned_lines.append(row)
-            
+
             # Stop if we've reached nrows
             if self.nrows and len(aligned_lines) >= self.nrows:
                 break
@@ -65,4 +65,4 @@ class Un6Transformer(BaseEstimator, TransformerMixin):
         # Create DataFrame with language codes as column names
         df = pd.DataFrame(aligned_lines, columns=self.langs)
 
-        return df 
+        return df

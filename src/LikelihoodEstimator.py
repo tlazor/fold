@@ -21,7 +21,12 @@ memory = Memory(cachedir, verbose=0)
 @memory.cache(ignore=["model", "chunk_size"])
 @torch.compile
 def get_token_likelihood_vec(
-    model: nn.Module, model_name: str, token_ids, attention_mask, mask_token_id, chunk_size: int = 10
+    model: nn.Module,
+    model_name: str,
+    token_ids,
+    attention_mask,
+    mask_token_id,
+    chunk_size: int = 10,
 ) -> list:
     """
     Compute the likelihood (probability) of each non-special token in `text`
@@ -174,7 +179,11 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
                 # print(f"{attention_mask=}")
                 # exit()
                 token_likelihoods = get_token_likelihood_vec(
-                    model, self.model_name, input_ids, attention_mask, self.mask_token_id
+                    model,
+                    self.model_name,
+                    input_ids,
+                    attention_mask,
+                    self.mask_token_id,
                 )
                 token_arrays.append(token_likelihoods)
 

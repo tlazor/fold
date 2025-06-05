@@ -147,7 +147,7 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
     Compute the coherence between all pairs of distributions
     in a 2D array P of shape (num_langs, num_samples),
     returning an array of shape (num_langs, num_langs).
-    
+
     Parameters
     ----------
     P : np.ndarray
@@ -160,7 +160,7 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
         Frequency band to filter coherence calculation (min_freq, max_freq) as a proportion of Nyquist frequency.
         For example, (0.4, 0.5) will only use frequencies between 40% and 50% of the Nyquist frequency.
         Default is None (uses all frequencies).
-        
+
     Returns
     -------
     coherence_matrix : np.ndarray
@@ -168,14 +168,15 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
     """
     if len(P.shape) == 2:
         from scipy.signal import coherence
+
         num_langs = P.shape[0]
         coherence_mat = np.zeros((num_langs, num_langs))
-        
+
         for i in range(num_langs):
             for j in range(num_langs):
                 # Calculate coherence between signals using cached function
                 f, Cxy = coherence(P[i], P[j], fs=fs, nperseg=nperseg)
-                
+
                 # Filter frequency band if specified
                 if freq_band is not None:
                     nyquist = fs / 2
@@ -183,31 +184,31 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
                     max_freq = freq_band[1] * nyquist
                     mask = (f >= min_freq) & (f <= max_freq)
                     Cxy = Cxy[mask]
-                
+
                 # Take mean of coherence across selected frequencies
                 coherence_mat[i, j] = np.mean(Cxy)
-                
+
         return coherence_mat
-        
+
     elif len(P.shape) == 3:
         import cupy as cp
         from cupyx.scipy.signal import coherence
 
         num_langs, num_tokens, _ = P.shape
         coherence_mat = cp.zeros((num_langs, num_langs))
-        
+
         # Process language pairs in parallel where possible
         for i in range(num_langs):
             # Get all signals for language i
             sigs_i = P[i]  # shape: (num_tokens, num_samples)
-            
+
             for j in range(num_langs):
                 # Get all signals for language j
                 sigs_j = P[j]  # shape: (num_tokens, num_samples)
-                
+
                 # Calculate coherence for all token positions at once using cached function
                 f, Cxy = coherence(sigs_i, sigs_j, fs=fs, nperseg=nperseg)
-                
+
                 # Filter frequency band if specified
                 if freq_band is not None:
                     nyquist = fs / 2
@@ -215,14 +216,14 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
                     max_freq = freq_band[1] * nyquist
                     mask = (f >= min_freq) & (f <= max_freq)
                     Cxy = Cxy[:, mask]
-                
+
                 # Cxy shape: (num_tokens, n_freqs)
                 # Take mean across frequencies for each token
                 token_coherences = cp.mean(Cxy, axis=1)  # shape: (num_tokens,)
-                
+
                 # Take mean across all tokens
                 coherence_mat[i, j] = cp.mean(token_coherences)
-                
+
         return coherence_mat.get()
 
 
@@ -243,10 +244,10 @@ class MetricTransformer(BaseEstimator, TransformerMixin):
 
             X_gpu = [cp.asarray(x) for x in X]
             return np.stack(
-                [self.metric_fun(x) for x in (track(X_gpu) if self.verbose else X_gpu)], axis=0
+                [self.metric_fun(x) for x in (track(X_gpu) if self.verbose else X_gpu)],
+                axis=0,
             )
         else:
             return np.stack(
                 [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
             )
-        

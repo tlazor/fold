@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+
 def save_fig(filename):
     plot_dir = Path(".") / "plots"
 

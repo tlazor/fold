@@ -144,8 +144,8 @@ def calculate_correlations_new(dataframes):
                 x = df[row]
                 y = df[col]
                 valid = x.notna() & y.notna()
-                x = pd.to_numeric(x[valid], errors='coerce')
-                y = pd.to_numeric(y[valid], errors='coerce')
+                x = pd.to_numeric(x[valid], errors="coerce")
+                y = pd.to_numeric(y[valid], errors="coerce")
 
                 if len(x) < 2:
                     continue
@@ -153,7 +153,9 @@ def calculate_correlations_new(dataframes):
                 # Pearson correlation
                 p_coef, p_pval = pearsonr(x, y)
                 x_mean, y_mean = x.mean(), y.mean()
-                pointwise_pearson = ((x - x_mean) * (y - y_mean)) / np.sqrt(((x - x_mean) ** 2).sum() * ((y - y_mean) ** 2).sum())
+                pointwise_pearson = ((x - x_mean) * (y - y_mean)) / np.sqrt(
+                    ((x - x_mean) ** 2).sum() * ((y - y_mean) ** 2).sum()
+                )
 
                 # print(f"{pointwise_pearson=}")
 
@@ -171,17 +173,19 @@ def calculate_correlations_new(dataframes):
                     num_concordant += concordant
                     num_discordant += discordant
 
-                all_correlations.append({
-                    "metric": f"{col}",
-                    "p_coef": p_coef,
-                    "p_pval": p_pval,
-                    "s_coef": s_coef,
-                    "s_pval": s_pval,
-                    "num_points": len(x),
-                    "pearson_contrib": pointwise_pearson,
-                    "num_concordant": num_concordant,
-                    "num_discordant": num_discordant
-                })
+                all_correlations.append(
+                    {
+                        "metric": f"{col}",
+                        "p_coef": p_coef,
+                        "p_pval": p_pval,
+                        "s_coef": s_coef,
+                        "s_pval": s_pval,
+                        "num_points": len(x),
+                        "pearson_contrib": pointwise_pearson,
+                        "num_concordant": num_concordant,
+                        "num_discordant": num_discordant,
+                    }
+                )
 
     return pd.DataFrame(all_correlations)
 
@@ -298,23 +302,23 @@ def analyze_output(output, langs, f=None, model_name=None):
 
     analyze_pearson_contrib(results_long, model_name)
 
- 
+
 def analyze_pearson_contrib(results_long, model_name):
     # Get pearson contrib
     df = results_long["pearson_contrib"]
-    
+
     # iterate through each metric in pearson_contrib (pd.Series)
     for index, metric_pearson_contrib in df.items():
         # Get metric name
         metric_name = results_long.loc[index, "metric"]
-        
+
         langs = set()
         if isinstance(metric_pearson_contrib.index[0], tuple):
             for index_langs in metric_pearson_contrib.index:
                 langs.update(index_langs)
 
             langs = sorted(langs)
-                
+
             # Initialize a square matrix
             matrix = pd.DataFrame(np.nan, index=langs, columns=langs)
 
@@ -336,11 +340,13 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
     norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
 
     plt.figure(figsize=(10, 8))
-    plt.imshow(matrix, cmap='coolwarm', norm=norm, interpolation='nearest')
-    plt.colorbar(label='Score')
+    plt.imshow(matrix, cmap="coolwarm", norm=norm, interpolation="nearest")
+    plt.colorbar(label="Score")
     plt.xticks(ticks=np.arange(len(matrix.columns)), labels=matrix.columns, rotation=90)
     plt.yticks(ticks=np.arange(len(matrix.index)), labels=matrix.index)
-    plt.title(f"{metric_name} Pearson Contrib (coef={results_long.loc[index, 'p_coef']:.3f}, pval={results_long.loc[index, 'p_pval']:.3f})")
+    plt.title(
+        f"{metric_name} Pearson Contrib (coef={results_long.loc[index, 'p_coef']:.3f}, pval={results_long.loc[index, 'p_pval']:.3f})"
+    )
     plt.tight_layout()
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
     plt.savefig(f"{metric_name}_pearson_contrib_{current_time}.png")
@@ -354,7 +360,7 @@ def analyze_wikisize(matrix, metric_name, results_long, index, model_name):
         for lang2 in matrix.columns:
             if lang1 == lang2:
                 continue
-            
+
             # print(f"{lang1=}, {lang2=}")
 
             if model_name == "bert-base-multilingual-cased":
@@ -378,10 +384,28 @@ def analyze_wikisize(matrix, metric_name, results_long, index, model_name):
             # print(f"{pearson_contrib=}")
 
             # Add contrib and wikisize to new dataframe
-            size_df = pd.concat([size_df, pd.DataFrame({"lang1_size": lang1_size, "lang2_size": lang2_size, "pearson_contrib": pearson_contrib, "min_size": min_size, "max_size": max_size, "mean_size": mean_size, "diff_size": diff_size}, index=[index])])
+            size_df = pd.concat(
+                [
+                    size_df,
+                    pd.DataFrame(
+                        {
+                            "lang1_size": lang1_size,
+                            "lang2_size": lang2_size,
+                            "pearson_contrib": pearson_contrib,
+                            "min_size": min_size,
+                            "max_size": max_size,
+                            "mean_size": mean_size,
+                            "diff_size": diff_size,
+                        },
+                        index=[index],
+                    ),
+                ]
+            )
 
     pearson_and_spearman_df = calculate_coef_and_pval(size_df)
-    print(f"{metric_name} ({len(size_df['pearson_contrib'].dropna())})\n{pearson_and_spearman_df.to_markdown(floatfmt=".3f")}")
+    print(
+        f"{metric_name} ({len(size_df['pearson_contrib'].dropna())})\n{pearson_and_spearman_df.to_markdown(floatfmt='.3f')}"
+    )
 
     # create a scatter plot of pearson_contrib vs min_size
     plt.figure(figsize=(10, 8))
@@ -428,10 +452,25 @@ def analyze_wikisize(matrix, metric_name, results_long, index, model_name):
             # print(f"{pearson_contrib=}")
 
             # Add contrib and wikisize to new dataframe
-            size_df = pd.concat([size_df, pd.DataFrame({"lang1_size": lang1_size, "lang2_size": lang2_size, "pearson_contrib": pearson_contrib, "min_size": min_size}, index=[index])])
+            size_df = pd.concat(
+                [
+                    size_df,
+                    pd.DataFrame(
+                        {
+                            "lang1_size": lang1_size,
+                            "lang2_size": lang2_size,
+                            "pearson_contrib": pearson_contrib,
+                            "min_size": min_size,
+                        },
+                        index=[index],
+                    ),
+                ]
+            )
 
     pearson_and_spearman_df = calculate_coef_and_pval(size_df, cols=["min_size"])
-    print(f"{metric_name} ({len(size_df['pearson_contrib'].dropna())})\n{pearson_and_spearman_df.to_markdown(floatfmt=".3f")}")
+    print(
+        f"{metric_name} ({len(size_df['pearson_contrib'].dropna())})\n{pearson_and_spearman_df.to_markdown(floatfmt='.3f')}"
+    )
 
     # create a scatter plot of pearson_contrib vs min_size
     plt.figure(figsize=(10, 8))
@@ -444,7 +483,9 @@ def analyze_wikisize(matrix, metric_name, results_long, index, model_name):
     plt.close()
 
 
-def calculate_coef_and_pval(size_df, cols=["min_size", "mean_size", "max_size", "diff_size"]):
+def calculate_coef_and_pval(
+    size_df, cols=["min_size", "mean_size", "max_size", "diff_size"]
+):
     results = []
     # Loop through each column to correlate with 'pearson_contrib'
     for col in cols:
@@ -461,13 +502,15 @@ def calculate_coef_and_pval(size_df, cols=["min_size", "mean_size", "max_size", 
         pearson_r, pearson_p = pearsonr(x, y)
         spearman_r, spearman_p = spearmanr(x, y)
 
-        results.append({
-            "column": col,
-            "pearson_r": pearson_r,
-            "pearson_p": pearson_p,
-            "spearman_r": spearman_r,
-            "spearman_p": spearman_p,
-        })
+        results.append(
+            {
+                "column": col,
+                "pearson_r": pearson_r,
+                "pearson_p": pearson_p,
+                "spearman_r": spearman_r,
+                "spearman_p": spearman_p,
+            }
+        )
     return pd.DataFrame(results).set_index("column")
 
 
@@ -493,12 +536,18 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     # Store row and column indices using actual DataFrame labels
     row_labels = df_a_sub.index
     col_labels = df_a_sub.columns
-    flattened_indices = [(row_labels[i // len(col_labels)], col_labels[i % len(col_labels)]) for i in range(len(series_a_sub))]
+    flattened_indices = [
+        (row_labels[i // len(col_labels)], col_labels[i % len(col_labels)])
+        for i in range(len(series_a_sub))
+    ]
     # print(f"{flattened_indices=}")
     series_b_sub = df_b_sub.values.flatten()
-    df = pd.DataFrame({"fold": series_a_sub, baseline_name: series_b_sub}, index=flattened_indices)
+    df = pd.DataFrame(
+        {"fold": series_a_sub, baseline_name: series_b_sub}, index=flattened_indices
+    )
 
     return df
+
 
 def get_langs(use_bible=False, use_un6=False, use_bert=True):
     if use_bible:
@@ -521,22 +570,28 @@ def get_langs(use_bible=False, use_un6=False, use_bert=True):
         langs = constants.XNLI_LANGUAGES
     model_langs_2l = []
     print(f"{len(langs)=}, {langs=}")
-    model_langs = constants.BERT_MULTILINGUAL_LANGS if use_bert else constants.XLMR_LANGS
+    model_langs = (
+        constants.BERT_MULTILINGUAL_LANGS if use_bert else constants.XLMR_LANGS
+    )
     for lang in model_langs:
         try:
             # BERT supports "Norwegian (Bokmal)" and "Norwegian (Nynorsk)" but langcodes doesn't
             if lang == "Norwegian (Bokmal)":
                 lang_2l = "no"
             else:
-                lang_2l = langcodes.Language.find_name('language', lang).language
+                lang_2l = langcodes.Language.find_name("language", lang).language
             if lang_2l is not None:
                 model_langs_2l.append(lang_2l)
             else:
-                print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}")
+                print(
+                    f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}"
+                )
         except LookupError as e:
-            print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}-{e}")
+            print(
+                f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}-{e}"
+            )
             continue
-    
+
     # Filter out languages that are not in the model
     filtered_langs = [lang for lang in langs if lang in model_langs_2l]
     # Get languages that were removed
@@ -551,7 +606,9 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
     if torch.cuda.is_available():
         # Set memory allocation strategy
-        torch.cuda.set_per_process_memory_fraction(0.8)  # Use 80% of available GPU memory
+        torch.cuda.set_per_process_memory_fraction(
+            0.8
+        )  # Use 80% of available GPU memory
         torch.cuda.memory.set_per_process_memory_fraction(0.8)
         # Enable memory efficient attention
         torch.backends.cuda.enable_flash_sdp(True)
@@ -572,8 +629,10 @@ if __name__ == "__main__":
     use_un6 = False
     use_spectra = True
     straight_spectra = False
-    use_bert = True 
-    model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+    use_bert = True
+    model_name = (
+        "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+    )
 
     cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
     pipeline_memory = Memory(cachedir, verbose=0)
@@ -592,8 +651,9 @@ if __name__ == "__main__":
         freq_bands = [(0, 1)]
 
     # print config options
-    print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
-
+    print(
+        f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}"
+    )
 
     langs = get_langs(use_bible, use_un6, use_bert)
     likelihood_pipeline_components = [
@@ -604,7 +664,10 @@ if __name__ == "__main__":
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform(model_name=model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
-        ("est_likelihood", LikelihoodEstimator(model_name=model_name, mask_token_id=mask_token_id)),
+        (
+            "est_likelihood",
+            LikelihoodEstimator(model_name=model_name, mask_token_id=mask_token_id),
+        ),
     ]
 
     spectra_component = [
@@ -617,17 +680,23 @@ if __name__ == "__main__":
         )
     ]
 
-    
     # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
     # metric_funs = [kl_divergence_matrix]
-    
+
     short_model_name = "bert" if use_bert else "xlmr"
     f = None
     try:
         prefix = "bible" if use_bible else "un6" if use_un6 else "xnli"
-        f = open(Path(f"./{prefix}_{short_model_name}_likelihood_output.txt"), "w+", encoding="utf-8")
+        f = open(
+            Path(f"./{prefix}_{short_model_name}_likelihood_output.txt"),
+            "w+",
+            encoding="utf-8",
+        )
         # print config options to file
-        print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}", file=f)
+        print(
+            f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}",
+            file=f,
+        )
         for band in freq_bands:
             coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
             coherence_fun.__name__ = "coherence_fun"
@@ -639,11 +708,17 @@ if __name__ == "__main__":
                 BandSelectTransformer(freq_band=band),
             )
             for fun in metric_funs:
-                metric_transformer = MetricTransformer(name=fun.__name__, metric_fun=fun, verbose=True)
+                metric_transformer = MetricTransformer(
+                    name=fun.__name__, metric_fun=fun, verbose=True
+                )
                 metric_component = (metric_transformer.name, metric_transformer)
                 pipeline = Pipeline(
                     likelihood_pipeline_components
-                    + (spectra_component if use_spectra and fun != coherence_fun else [])
+                    + (
+                        spectra_component
+                        if use_spectra and fun != coherence_fun
+                        else []
+                    )
                     + ([band_component] if fun != coherence_fun else [])
                     + [metric_component],
                     memory=pipeline_memory,

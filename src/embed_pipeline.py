@@ -50,8 +50,10 @@ if __name__ == "__main__":
     straight_spectra = False
     use_bert = True
     use_cache = True  # Set to False to force recomputation
-    
-    model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+
+    model_name = (
+        "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
+    )
 
     cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
     pipeline_memory = Memory(cachedir, verbose=0)
@@ -71,7 +73,9 @@ if __name__ == "__main__":
         freq_bands = [(0, 1)]
 
     # print config options
-    print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}")
+    print(
+        f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}"
+    )
 
     langs = get_langs(use_bible, use_un6, use_bert)
     likelihood_pipeline_components = [
@@ -100,10 +104,17 @@ if __name__ == "__main__":
     short_model_name = "bert" if use_bert else "xlmr"
     cache_dir = Path("./cache/pipeline_outputs")
     cache_dir.mkdir(parents=True, exist_ok=True)
-    
-    f = open(Path(f"./{prefix}_{short_model_name}_embedding_output.txt"), "w+", encoding="utf-8")
+
+    f = open(
+        Path(f"./{prefix}_{short_model_name}_embedding_output.txt"),
+        "w+",
+        encoding="utf-8",
+    )
     # print config options to file
-    print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}", file=f)
+    print(
+        f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}",
+        file=f,
+    )
     for band in freq_bands:
         print(f"{band=}", file=f)
 
@@ -127,7 +138,9 @@ if __name__ == "__main__":
             for layer in layers:
                 embed_component = (
                     "embeddings",
-                    EmbedTransformer(mask_token_id=mask_token_id, layer=layer, model_name=model_name),
+                    EmbedTransformer(
+                        mask_token_id=mask_token_id, layer=layer, model_name=model_name
+                    ),
                 )
 
                 # Create cache key based on configuration
@@ -136,7 +149,7 @@ if __name__ == "__main__":
 
                 if use_cache and cache_path.exists():
                     print(f"Loading cached output from {cache_path}")
-                    with open(cache_path, 'rb') as cache_file:
+                    with open(cache_path, "rb") as cache_file:
                         output = pickle.load(cache_file)
                 else:
                     pipeline = Pipeline(
@@ -155,10 +168,10 @@ if __name__ == "__main__":
 
                     # pass None because TSVToDataFrame ignores X and reads from file_path
                     output = pipeline.fit_transform(None)
-                    
+
                     # Cache the output
                     print(f"Saving output to cache at {cache_path}")
-                    with open(cache_path, 'wb') as cache_file:
+                    with open(cache_path, "wb") as cache_file:
                         pickle.dump(output, cache_file)
 
                 print(f"{layer=}", file=f)
