@@ -1,4 +1,6 @@
 from pathlib import Path
+import pickle
+import os
 
 from joblib import Memory
 from sklearn.pipeline import Pipeline
@@ -42,11 +44,12 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    use_bible = False
-    use_un6 = True
+    use_bible = True
+    use_un6 = False
     use_spectra = True
     straight_spectra = False
-    use_bert = False
+    use_bert = True
+    use_cache = True  # Set to False to force recomputation
     
     model_name = "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
 
@@ -93,10 +96,12 @@ if __name__ == "__main__":
         )
     ]
 
-    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
-    # metric_funs = [kl_divergence_matrix]
+    prefix = "bible" if use_bible else "un6" if use_un6 else "xnli"
     short_model_name = "bert" if use_bert else "xlmr"
-    f = open(Path(f"./{short_model_name}_embedding_output.txt"), "w+", encoding="utf-8")
+    cache_dir = Path("./cache/pipeline_outputs")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    f = open(Path(f"./{prefix}_{short_model_name}_embedding_output.txt"), "w+", encoding="utf-8")
     # print config options to file
     print(f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}", file=f)
     for band in freq_bands:
@@ -104,7 +109,7 @@ if __name__ == "__main__":
 
         coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
         coherence_fun.__name__ = "coherence_fun"
-        metric_funs = [compute_overlaps, kl_divergence_matrix, coherence_fun]
+        metric_funs = [kl_divergence_matrix]
 
         band_component = (
             f"{band[0]:.3f}-{band[1]:.3f} selector",
@@ -125,23 +130,37 @@ if __name__ == "__main__":
                     EmbedTransformer(mask_token_id=mask_token_id, layer=layer, model_name=model_name),
                 )
 
-                pipeline = Pipeline(
-                    likelihood_pipeline_components
-                    + [embed_component]
-                    + (
-                        spectra_component
-                        if use_spectra and fun != coherence_fun
-                        else []
+                # Create cache key based on configuration
+                cache_key = f"{prefix}_{short_model_name}_{band[0]:.3f}-{band[1]:.3f}_{fun.__name__}_layer{layer}.pkl"
+                cache_path = cache_dir / cache_key
+
+                if use_cache and cache_path.exists():
+                    print(f"Loading cached output from {cache_path}")
+                    with open(cache_path, 'rb') as cache_file:
+                        output = pickle.load(cache_file)
+                else:
+                    pipeline = Pipeline(
+                        likelihood_pipeline_components
+                        + [embed_component]
+                        + (
+                            spectra_component
+                            if use_spectra and fun != coherence_fun
+                            else []
+                        )
+                        + ([band_component] if fun != coherence_fun else [])
+                        + [metric_component],
+                        memory=pipeline_memory,
+                        verbose=True,
                     )
-                    + ([band_component] if fun != coherence_fun else [])
-                    + [metric_component],
-                    memory=pipeline_memory,
-                    verbose=True,
-                )
 
-                # pass None because TSVToDataFrame ignores X and reads from file_path
-                output = pipeline.fit_transform(None)
+                    # pass None because TSVToDataFrame ignores X and reads from file_path
+                    output = pipeline.fit_transform(None)
+                    
+                    # Cache the output
+                    print(f"Saving output to cache at {cache_path}")
+                    with open(cache_path, 'wb') as cache_file:
+                        pickle.dump(output, cache_file)
+
                 print(f"{layer=}", file=f)
-
-                analyze_output(output, langs, f=f)
+                analyze_output(output, langs, f=f, model_name=model_name)
     f.close()
