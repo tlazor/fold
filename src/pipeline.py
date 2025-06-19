@@ -313,24 +313,33 @@ def analyze_pearson_contrib(results_long, model_name):
         metric_name = results_long.loc[index, "metric"]
 
         langs = set()
+        
         if isinstance(metric_pearson_contrib.index[0], tuple):
             for index_langs in metric_pearson_contrib.index:
                 langs.update(index_langs)
 
             langs = sorted(langs)
-
             # Initialize a square matrix
             matrix = pd.DataFrame(np.nan, index=langs, columns=langs)
 
             for index_langs in metric_pearson_contrib.index:
                 matrix.loc[index_langs] = metric_pearson_contrib[index_langs]
+                
+            plot_pearson_contrib(matrix, metric_name, results_long, index)
+            analyze_wikisize(matrix, metric_name, results_long, index, model_name)
         else:
+            langs = sorted(metric_pearson_contrib.index) 
             # if it's not a tuple, it's a single language like FSI scale
-            # TODO: handle FSI scale
-            continue
-
-        plot_pearson_contrib(matrix, metric_name, results_long, index)
-        analyze_wikisize(matrix, metric_name, results_long, index, model_name)
+            # analyze en row and col separately
+            en_row = pd.DataFrame(np.nan, index=langs, columns=langs)
+            en_col = pd.DataFrame(np.nan, index=langs, columns=langs)
+            print(f"{metric_pearson_contrib.index=}")
+            en_row.loc["en"] = metric_pearson_contrib[langs]
+            # en_col.loc[:, "en"] = [metric_pearson_contrib[(lang_a, "en")] for lang_a in langs]
+            print(f"{en_row=}")
+            
+            plot_pearson_contrib(en_row, f"{metric_name}_en_row", results_long, index)
+            analyze_wikisize(en_row, f"{metric_name}_en_row", results_long, index, model_name)
 
 
 def plot_pearson_contrib(matrix, metric_name, results_long, index):
@@ -353,7 +362,7 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
     plt.close()
 
 
-def analyze_wikisize(matrix, metric_name, results_long, index, model_name):
+def analyze_wikisize(matrix, metric_name, index, model_name):
     # iterate through each language pair in matrix
     size_df = pd.DataFrame()
     for lang1 in matrix.index:
