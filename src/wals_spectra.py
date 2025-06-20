@@ -24,6 +24,7 @@ from MetricTransformer import (
 )
 
 from pipeline import get_langs
+from pipeline_options import config
 
 import fold_globals
 import constants
@@ -51,11 +52,11 @@ def get_langs_with_wals_feature(feature_id):
     lang_to_value = load_wals_feature(feature_id)
     print(f"{len(lang_to_value)=}")
 
-    # Get all available Bible languages
-    langs = get_langs(use_bible=True)
+    # Get all available Bible languages using shared config
+    langs = get_langs(use_bible=True, use_un6=False, use_bert=config.use_bert)
     langs = [
         lang
-        for lang in get_langs(use_bible=True)
+        for lang in get_langs(use_bible=True, use_un6=False, use_bert=config.use_bert)
         if langcodes.Language.get(lang).to_alpha3() in lang_to_value
     ]
 
@@ -140,12 +141,8 @@ def main():
     if not plot_dir.exists():
         plot_dir.mkdir(parents=True)
 
-    # Get mask token ID
-    from transformers import AutoTokenizer
-
-    mask_token_id = AutoTokenizer.from_pretrained(
-        "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
-    ).mask_token_id
+    # Get mask token ID using shared config
+    mask_token_id = config.mask_token_id
 
     # Specify WALS feature to analyze
     # feature_id = "17A"  # Example: Order of Subject, Object and Verb
@@ -169,12 +166,12 @@ def main():
         print(f"Found {len(langs)} languages with WALS feature {feature_id}")
         print(f"{langs=}")
 
-        # Set up pipeline components
+        # Set up pipeline components using shared config
         pipeline_components = [
             ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)),
-            ("tokenize", TokenTransform()),
+            ("tokenize", TokenTransform(model_name=config.model_name)),
             ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
-            ("est_likelihood", LikelihoodEstimator(mask_token_id=mask_token_id)),
+            ("est_likelihood", LikelihoodEstimator(model_name=config.model_name, mask_token_id=mask_token_id)),
             ("est_psd", PsdEstimator(nperseg=56 * 2 - 1, axis=1)),
             ("norm_psd", PsdNormalizer(axis=1)),
         ]

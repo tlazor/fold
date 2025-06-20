@@ -34,6 +34,7 @@ from Un6Transformer import Un6Transformer
 
 import fold_globals
 import constants
+from pipeline_options import config
 
 from langcodes import Language
 
@@ -634,48 +635,24 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    use_bible = True
-    use_un6 = False
-    use_spectra = True
-    straight_spectra = False
-    use_bert = True
-    model_name = (
-        "bert-base-multilingual-cased" if use_bert else "FacebookAI/xlm-roberta-base"
-    )
-
-    cachedir = Path(f".cache/joblib/tmp/{'bert' if use_bert else 'xlmr'}")
-    pipeline_memory = Memory(cachedir, verbose=0)
-
-    mask_token_id = AutoTokenizer.from_pretrained(
-        model_name, clean_up_tokenization_spaces=True
-    ).mask_token_id
-    # layers = range(1, 12)
-    num_bands = 1
-    if num_bands > 1:
-        beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
-        freq_bands = zip(
-            beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands)
-        )
-    else:
-        freq_bands = [(0, 1)]
+    # Use shared configuration
+    pipeline_memory = Memory(config.cachedir, verbose=0)
 
     # print config options
-    print(
-        f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}"
-    )
+    config.print_config()
 
-    langs = get_langs(use_bible, use_un6, use_bert)
+    langs = get_langs(config.use_bible, config.use_un6, config.use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
-        if use_bible
+        if config.use_bible
         else ("load_un6", Un6Transformer(Path("data/6way"), langs=langs, nrows=2000))
-        if use_un6
+        if config.use_un6
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
-        ("tokenize", TokenTransform(model_name=model_name)),
+        ("tokenize", TokenTransform(model_name=config.model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
         (
             "est_likelihood",
-            LikelihoodEstimator(model_name=model_name, mask_token_id=mask_token_id),
+            LikelihoodEstimator(model_name=config.model_name, mask_token_id=config.mask_token_id),
         ),
     ]
 
@@ -683,7 +660,7 @@ if __name__ == "__main__":
         *(
             # if is_spectra is True, we add just the SpectralTransformer
             [("spectra", SpectralTransformer())]
-            if straight_spectra
+            if config.straight_spectra
             # otherwise, we add the two PSD-related transforms
             else [("est_psd", PsdEstimator()), ("norm_psd", PsdNormalizer())]
         )
@@ -692,21 +669,16 @@ if __name__ == "__main__":
     # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
     # metric_funs = [kl_divergence_matrix]
 
-    short_model_name = "bert" if use_bert else "xlmr"
     f = None
     try:
-        prefix = "bible" if use_bible else "un6" if use_un6 else "xnli"
         f = open(
-            Path(f"./{prefix}_{short_model_name}_likelihood_output.txt"),
+            Path(config.get_output_filename("likelihood")),
             "w+",
             encoding="utf-8",
         )
         # print config options to file
-        print(
-            f"{use_bible=}, {use_un6=}, {use_spectra=}, {straight_spectra=}, {use_bert=}, {model_name=}",
-            file=f,
-        )
-        for band in freq_bands:
+        config.print_config(file=f)
+        for band in config.freq_bands:
             coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
             coherence_fun.__name__ = "coherence_fun"
             metric_funs = [compute_overlaps, kl_divergence_matrix, coherence_fun]
@@ -725,7 +697,7 @@ if __name__ == "__main__":
                     likelihood_pipeline_components
                     + (
                         spectra_component
-                        if use_spectra and fun != coherence_fun
+                        if config.use_spectra and fun != coherence_fun
                         else []
                     )
                     + ([band_component] if fun != coherence_fun else [])
@@ -738,7 +710,7 @@ if __name__ == "__main__":
                 output = pipeline.fit_transform(None)
                 print(metric_transformer.name, output.shape, file=f)
 
-                analyze_output(output, langs, f=f, model_name=model_name)
+                analyze_output(output, langs, f=f, model_name=config.model_name)
     finally:
         if f is not None:
             f.close()

@@ -25,6 +25,7 @@ from MetricTransformer import (
 
 from pipeline import get_langs
 from wals_spectra import compute_spectra_for_langs, get_langs_with_wals_feature
+from pipeline_options import config
 
 import fold_globals
 import constants
@@ -99,12 +100,8 @@ def main():
     if not plot_dir.exists():
         plot_dir.mkdir(parents=True)
 
-    # Get mask token ID
-    from transformers import AutoTokenizer
-
-    mask_token_id = AutoTokenizer.from_pretrained(
-        "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
-    ).mask_token_id
+    # Get mask token ID using shared config
+    mask_token_id = config.mask_token_id
 
     # Specify WALS feature to analyze
     wals_features = [
@@ -126,15 +123,15 @@ def main():
         print(f"Found {len(langs)} languages with WALS feature {feature_id}")
         print(f"{langs=}")
 
-        # Set up pipeline components
+        # Set up pipeline components using shared config
         pipeline_components = [
             ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs)),
-            ("tokenize", TokenTransform()),
+            ("tokenize", TokenTransform(model_name=config.model_name)),
             ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
             (
                 "embeddings",
-                EmbedTransformer(mask_token_id=mask_token_id, layer=12),
-            ),  # Using layer 12 embeddings
+                EmbedTransformer(mask_token_id=mask_token_id, layer=config.layers[0]),
+            ),  # Using first layer from config
             ("est_psd", PsdEstimator(nperseg=56 * 2 - 1, axis=1)),
             ("norm_psd", PsdNormalizer(axis=1)),
         ]
