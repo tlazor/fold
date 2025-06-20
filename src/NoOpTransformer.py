@@ -27,23 +27,28 @@ class NoOpTransformer(BaseEstimator, TransformerMixin):
         X : list of np.ndarray
             Input data where each array may have different shapes.
             Supports 2D arrays (num_langs, num_tokens), 
-            3D arrays (num_samples, num_langs, num_tokens)
+            3D arrays (num_langs, num_tokens, hidden_dim)
             
         Returns
         -------
         list of np.ndarray
             The same input data with all arrays padded to the same shape.
         """
-        max_len = max([y[-1] for y in set(x.shape for x in X)])
+        # Find the longest size along axis 1
+        max_len = max(x.shape[1] for x in X)
+        print(f"{max_len=}")
 
+        # Pad just that axis
         padded_X = [
             np.pad(
                 x,
-                pad_width=[(0, 0)] * (x.ndim - 1)              # no padding on leading axes
-                        + [(0, max_len - x.shape[-1])],      # pad only the last axis
+                pad_width=[(0, 0)]                    # axis 0 — keep as-is
+                        + [(0, max_len - x.shape[1])] # axis 1 — pad on the right
+                        + [(0, 0)] * (x.ndim - 2),    # any remaining axes — keep as-is
                 mode="constant",
                 constant_values=0
             )
             for x in X
         ]
+        print(f"2D case unique shapes: {list(set(x.shape for x in padded_X))}")
         return padded_X
