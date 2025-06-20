@@ -72,33 +72,34 @@ def kl_divergence_matrix(P, epsilon=1e-15):
 
     elif len(P.shape) == 3:
         # --------------------------------------------
-        # 3D case: (num_langs, num_tokens, num_samples)
+        # 3-D case: (num_langs, num_tokens, hidden_dim)
         # --------------------------------------------
-        # Suppose P[i, t, :] represents the distribution
-        # for language i at token t across 'num_samples'.
         L, T, S = P.shape
 
-        # 1) Normalize each distribution for each language & token
-        P_norm = P / P.sum(axis=-1, keepdims=True)  # still shape (L, T, S)
+        # 1) Soft-max   — convert logits -> probabilities in a stable way
+        #    subtract max over last axis for numerical stability
+        P_shift = P - P.max(axis=-1, keepdims=True)
+        expP    = np.exp(P_shift)
+        Z       = expP.sum(axis=-1, keepdims=True)           # partition function
+        P_norm  = expP / (Z + epsilon)                       # shape (L, T, S)
 
-        # 2) Compute log(P_norm)
-        LP = np.log(P_norm + epsilon)  # shape (L, T, S)
+        # 2) log(P_norm)
+        LP = np.log(P_norm + epsilon)                        # shape (L, T, S)
 
-        # 3) alpha[i, t] = sum_x p[i, t, x] * log(p[i, t, x])
-        alpha = np.sum(P_norm * LP, axis=-1)  # shape (L, T)
+        # 3) α[i, t] = Σ_x  p[i,t,x] log p[i,t,x]
+        alpha = np.sum(P_norm * LP, axis=-1)                 # shape (L, T)
 
-        # 4) beta[i, j, t] = sum_x p[i, t, x] * log(p[j, t, x])
-        # We'll use einsum to handle pairwise i, j at each token.
-        # shape becomes (L, L, T)
-        beta = np.einsum("lts,Lts->lLt", P_norm, LP)
+        # 4) β[i, j, t] = Σ_x  p[i,t,x] log p[j,t,x]
+        #    Pair-wise across languages with einsum
+        beta = np.einsum("lts,Lts->lLt", P_norm, LP)         # shape (L, L, T)
 
-        # 5) KL[i, j, t] = alpha[i, t] - beta[i, j, t]
-        KL_per_token = alpha[:, None, :] - beta  # shape (L, L, T)
+        # 5) KL[i, j, t] = α[i,t] − β[i,j,t]
+        KL_per_token = alpha[:, None, :] - beta              # shape (L, L, T)
 
-        # Option A: Take the mean over tokens
-        KL = KL_per_token.mean(axis=-1)  # shape (L, L)
+        # Option A: mean over tokens (default)
+        KL = KL_per_token.mean(axis=-1)                      # shape (L, L)
+        # Option B: sum over tokens → use .sum(axis=-1)
 
-        # If you prefer summing over tokens, use .sum(axis=-1) instead.
         return KL
 
 
