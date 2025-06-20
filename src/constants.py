@@ -585,3 +585,52 @@ XLMR_SIZE = {
 
 # Log2 of XLMR_SIZE for equivalent treatment as BERT_MULTILINGUAL_LANGS
 XLMR_SIZE_LOG = {k: math.log2(v) for k, v in XLMR_SIZE.items()}
+
+families = {
+    # Indo-European → Germanic branch
+    "Germanic":      ["da", "de", "en", "nl", "no", "sv"],
+    # Indo-European → Romance branch (+ French-based Haitian Creole)
+    "Romance":       ["fr", "it", "pt", "ro", "es", "ht"],
+    # Indo-European → Slavic branch
+    "Slavic":        ["bg", "cs", "mk", "pl", "ru", "sr", "sk", "sl", "uk"],
+    # Indo-European → Baltic branch
+    "Baltic":        ["lv", "lt"],
+    # Indo-European → Albanian branch
+    "Albanian":      ["sq"],
+    # Indo-European → Greek branch
+    "Greek":         ["el"],
+    # Indo-European → Armenian branch
+    "Armenian":      ["hy"],
+    # Indo-European → Indo-Aryan branch
+    "Indo-Aryan":    ["bn", "hi", "ne", "ur"],
+    # Indo-European → Iranian branch
+    "Iranian":       ["fa", "ku", "tg"],
+    # Uralic family
+    "Uralic":        ["et", "fi", "hu"],
+    # Turkic family
+    "Turkic":        ["az", "kk", "ky", "tk", "tr", "uz"],
+    # Kartvelian family
+    "Kartvelian":    ["ka"],
+    # Mongolic family
+    "Mongolic":      ["mn"],
+    # Semitic family
+    "Semitic":       ["am", "ar", "he"],
+    # Niger-Congo → Bantu subgroup
+    "Bantu":         ["sw"],
+    # Austronesian → Malayo-Polynesian subgroup
+    "Austronesian":  ["id", "ms"],
+    # Austroasiatic family
+    "Austroasiatic": ["km", "vi"],
+    # Tai-Kadai family
+    "Tai-Kadai":     ["lo", "th"],
+    # Sino-Tibetan → Sinitic subgroup
+    "Sinitic":       ["zh", "yue"],
+    # Sino-Tibetan → Burmish subgroup
+    "Sino-Tibetan":  ["my"],
+    # Japonic family
+    "Japonic":       ["ja"],
+    # Koreanic family
+    "Koreanic":      ["ko"],
+}
+
+lang2family = {code: fam for fam, codes in families.items() for code in codes}
