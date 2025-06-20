@@ -18,6 +18,7 @@ from MetricTransformer import (
     kl_divergence_matrix,
     mae_matrix,
 )
+from NoOpTransformer import NoOpTransformer
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
 from SampleTokens import SampleTokens
@@ -63,8 +64,11 @@ if __name__ == "__main__":
     ]
     spectra_component = [
         *(
+            # if no_spectra is True, use NoOpTransformer
+            [("noop", NoOpTransformer())]
+            if config.no_spectra
             # if is_spectra is True, we add just the SpectralTransformer
-            [("spectra", SpectralTransformer())]
+            else [("spectra", SpectralTransformer())]
             if config.straight_spectra
             # otherwise, we add the two PSD-related transforms
             else [
@@ -89,7 +93,8 @@ if __name__ == "__main__":
 
         coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
         coherence_fun.__name__ = "coherence_fun"
-        metric_funs = [kl_divergence_matrix]
+        # If no_spectra is True, we don't use coherence_fun since it is explicitly a spectral metric
+        metric_funs = [compute_overlaps, kl_divergence_matrix] if config.no_spectra else [compute_overlaps, kl_divergence_matrix, coherence_fun]
 
         band_component = (
             f"{band[0]:.3f}-{band[1]:.3f} selector",
@@ -126,7 +131,7 @@ if __name__ == "__main__":
                         + [embed_component]
                         + (
                             spectra_component
-                            if config.use_spectra and fun != coherence_fun
+                            if fun != coherence_fun
                             else []
                         )
                         + ([band_component] if fun != coherence_fun else [])

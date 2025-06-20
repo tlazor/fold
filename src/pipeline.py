@@ -23,6 +23,7 @@ from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
 from LikelihoodEstimator import LikelihoodEstimator
+from NoOpTransformer import NoOpTransformer
 from MetricTransformer import (
     MetricTransformer,
     coherence_matrix,
@@ -327,7 +328,7 @@ def analyze_pearson_contrib(results_long, model_name):
                 matrix.loc[index_langs] = metric_pearson_contrib[index_langs]
                 
             plot_pearson_contrib(matrix, metric_name, results_long, index)
-            analyze_wikisize(matrix, metric_name, results_long, index, model_name)
+            analyze_wikisize(matrix, metric_name, index, model_name)
         else:
             langs = sorted(metric_pearson_contrib.index) 
             # if it's not a tuple, it's a single language like FSI scale
@@ -340,7 +341,7 @@ def analyze_pearson_contrib(results_long, model_name):
             print(f"{en_row=}")
             
             plot_pearson_contrib(en_row, f"{metric_name}_en_row", results_long, index)
-            analyze_wikisize(en_row, f"{metric_name}_en_row", results_long, index, model_name)
+            analyze_wikisize(en_row, f"{metric_name}_en_row", index, model_name)
 
 
 def plot_pearson_contrib(matrix, metric_name, results_long, index):
@@ -658,8 +659,11 @@ if __name__ == "__main__":
 
     spectra_component = [
         *(
+            # if no_spectra is True, use NoOpTransformer
+            [("noop", NoOpTransformer())]
+            if config.no_spectra
             # if is_spectra is True, we add just the SpectralTransformer
-            [("spectra", SpectralTransformer())]
+            else [("spectra", SpectralTransformer())]
             if config.straight_spectra
             # otherwise, we add the two PSD-related transforms
             else [("est_psd", PsdEstimator()), ("norm_psd", PsdNormalizer())]
@@ -681,7 +685,8 @@ if __name__ == "__main__":
         for band in config.freq_bands:
             coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
             coherence_fun.__name__ = "coherence_fun"
-            metric_funs = [compute_overlaps, kl_divergence_matrix, coherence_fun]
+            # If no_spectra is True, we don't use coherence_fun since it is explicitly a spectral metric
+            metric_funs = [compute_overlaps, kl_divergence_matrix] if config.no_spectra else [compute_overlaps, kl_divergence_matrix, coherence_fun]
 
             print(f"{band=}", file=f)
             band_component = (
@@ -697,7 +702,7 @@ if __name__ == "__main__":
                     likelihood_pipeline_components
                     + (
                         spectra_component
-                        if config.use_spectra and fun != coherence_fun
+                        if fun != coherence_fun
                         else []
                     )
                     + ([band_component] if fun != coherence_fun else [])

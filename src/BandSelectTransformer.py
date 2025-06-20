@@ -17,7 +17,6 @@ class BandSelectTransformer(BaseEstimator, TransformerMixin):
         min_idx = int(X[0].shape[-1] * self.freq_band[0])
         max_idx = int(X[0].shape[-1] * self.freq_band[1])
 
-        print(f"{min_idx=} {max_idx=}")
         if len(X[0].shape) == 2:
             # 2D case: (num_samples, num_langs, num_freq)
             return np.stack([x[:, min_idx:max_idx] for x in X], axis=0)

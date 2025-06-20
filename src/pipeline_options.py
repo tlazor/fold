@@ -20,12 +20,15 @@ class PipelineOptions:
             "bert-base-multilingual-cased" if self.use_bert else "FacebookAI/xlm-roberta-base"
         )
         
-        # Spectra options
-        self.use_spectra = True
+        # Spectra options (mutually exclusive)
+        self.no_spectra = True
         self.straight_spectra = False
         
+        # Validate mutual exclusion
+        self._validate_spectra_options()
+        
         # Embedding pipeline specific options
-        self.use_cache = True  # Set to False to force recomputation
+        self.use_cache = False  # Set to False to force recomputation
         self.layers = [12]  # For embedding pipeline
         
         # Frequency bands
@@ -38,6 +41,18 @@ class PipelineOptions:
             ))
         else:
             self.freq_bands = [(0, 1)]
+    
+    def _validate_spectra_options(self):
+        """Validate that only one spectra option is True."""
+        spectra_options = [self.no_spectra, self.straight_spectra]
+        true_count = sum(spectra_options)
+        
+        if true_count != 1:
+            raise ValueError(
+                f"Exactly one spectra option must be True, but found {true_count} True values: "
+                f"no_spectra={self.no_spectra}, "
+                f"straight_spectra={self.straight_spectra}"
+            )
     
     @property
     def short_model_name(self):
@@ -78,8 +93,10 @@ class PipelineOptions:
     def print_config(self, file=None):
         """Print configuration options."""
         config_str = (
-            f"{self.use_bible=}, {self.use_un6=}, {self.use_spectra=}, "
-            f"{self.straight_spectra=}, {self.use_bert=}, {self.model_name=}"
+            f"{self.use_bible=}, {self.use_un6=}, "
+            f"{self.no_spectra=}, {self.straight_spectra=}, "
+            f"{self.use_bert=}, {self.model_name=}, "
+            f"{self.layers=}, {self.num_bands=}, {self.use_cache=}"
         )
         print(config_str, file=file, flush=True)
         return config_str
