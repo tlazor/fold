@@ -9,7 +9,7 @@ import torch
 from scipy.stats import pearsonr, spearmanr
 from rich.progress import track
 from functools import partial
-from transformers import AutoTokenizer
+import matplotlib.transforms as mtransforms
 from scipy.stats import pearsonr, spearmanr, rankdata
 
 import pandas as pd
@@ -74,62 +74,6 @@ def show_heatmap(overlap_matrix, lang_labels=None):
     ax.set_title("Overlap Matrix Heatmap")
     plt.tight_layout()
     plt.show()
-
-
-def calculate_correlations(dataframes):
-    all_correlations = []
-
-    for df_name, df in dataframes.items():
-        # Check if df has at least 2 non-NA pairs
-        if df.dropna().shape[0] < 2:
-            print(f"{df_name=} has less than 2 non-NA pairs")
-            continue
-        for corr_name, corr_func in [("pearson", pearsonr), ("spearman", spearmanr)]:
-            corr = df.corr(method=lambda x, y: corr_func(x, y)[0])
-            pvals = df.corr(method=lambda x, y: corr_func(x, y)[1]) - np.eye(
-                len(df.columns)
-            )
-
-            # Flatten into long form
-            for i, row in enumerate(corr.index):
-                for j in range(i + 1, len(corr.columns)):
-                    col = corr.columns[j]
-                    # Skip diagonal or collect it as well
-                    if row != col:
-                        all_correlations.append(
-                            {
-                                # "df_name": df_name,
-                                "corr_type": corr_name,
-                                "metric": col if col != "fold" else row,
-                                "coef": corr.loc[row, col],
-                                "pval": pvals.loc[row, col],
-                                "num_points": df.dropna().shape[0],
-                            }
-                        )
-
-    # Convert to a single DataFrame
-    results_long = pd.DataFrame(all_correlations)
-
-    # Pivot the table so pearson/spearman become columns
-    pivoted = results_long.pivot_table(
-        index="metric", columns="corr_type", values=["coef", "pval"], aggfunc="first"
-    )
-
-    # Flatten the multi-index columns
-    pivoted.columns = [
-        f"{stat[:1]}_{ptype}"  # => p_coef, p_pval, s_coef, s_pval
-        for ptype, stat in pivoted.columns
-    ]
-
-    # Bring in num_points (same for both rows of a given metric, so we can just pick .first())
-    num_points = results_long.groupby("metric")["num_points"].first()
-
-    # Merge them together and reset_index so metric is a column again
-    out = pivoted.join(num_points).reset_index()
-
-    # Re-order the columns if needed
-    out = out[["metric", "p_coef", "p_pval", "s_coef", "s_pval", "num_points"]]
-    return out
 
 
 def calculate_correlations_new(dataframes):
@@ -345,23 +289,117 @@ def analyze_pearson_contrib(results_long, model_name):
 
 
 def plot_pearson_contrib(matrix, metric_name, results_long, index):
-    # Compute normalization to center at 0
-    vmin = np.min(matrix.values)
-    vmax = np.max(matrix.values)
-    norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    # -------------------------------------------------------------------------
+    # 1) Derive an ordering that keeps family blocks contiguous
+    # -------------------------------------------------------------------------
+    all_langs = list(matrix.columns)                       # original col order
+    family_blocks = {}
+    for lang in all_langs:
+        fam = constants.lang2family.get(lang, f"Unknown:{lang}")
+        family_blocks.setdefault(fam, []).append(lang)
 
-    plt.figure(figsize=(10, 8))
-    plt.imshow(matrix, cmap="coolwarm", norm=norm, interpolation="nearest")
-    plt.colorbar(label="Score")
-    plt.xticks(ticks=np.arange(len(matrix.columns)), labels=matrix.columns, rotation=90)
-    plt.yticks(ticks=np.arange(len(matrix.index)), labels=matrix.index)
-    plt.title(
-        f"{metric_name} Pearson Contrib (coef={results_long.loc[index, 'p_coef']:.3f}, pval={results_long.loc[index, 'p_pval']:.3f})"
+    ordered_families = sorted(family_blocks)               # global family order
+    ordered_langs  = [lng for fam in ordered_families
+                            for lng in family_blocks[fam]]
+
+    matrix = matrix.loc[ordered_langs, ordered_langs]      # re-index
+
+    # -------------------------------------------------------------------------
+    # 2) Plot
+    # -------------------------------------------------------------------------
+    vmin, vmax = np.min(matrix.values), np.max(matrix.values)
+    norm  = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    im = ax.imshow(matrix, cmap="coolwarm", norm=norm, interpolation="nearest")
+    fig.colorbar(im, ax=ax, label="Score")
+
+    # ----  language ticks ----
+    ax.set_xticks(np.arange(len(ordered_langs)))
+    ax.set_xticklabels(ordered_langs, rotation=90)
+    ax.set_yticks(np.arange(len(ordered_langs)))
+    ax.set_yticklabels(ordered_langs)
+
+    # ----  optional dashed gridlines marking family boundaries ----
+    pos = 0
+    for fam in ordered_families[:-1]:
+        pos += len(family_blocks[fam])
+        ax.axhline(pos - 0.5, lw=0.6, ls="--", alpha=0.5, color="black")
+        ax.axvline(pos - 0.5, lw=0.6, ls="--", alpha=0.5, color="black")
+
+    # -------------------------------------------------------------------------
+    # 3)  FAMILY LABELS  ── left & bottom, with auto-margin
+    # -------------------------------------------------------------------------
+    family_centres = []
+    counter = 0
+    for fam in ordered_families:
+        n = len(family_blocks[fam])
+        family_centres.append(counter + n / 2 - 0.5)
+        counter += n
+
+    left_texts   = []
+    bottom_texts = []
+
+    # --- Left-hand labels (x in AXES coords, y in DATA coords) ---------------
+    trans_left = mtransforms.blended_transform_factory(ax.transAxes, ax.transData)
+    for y, fam in zip(family_centres, ordered_families):
+        txt = ax.text(
+            -0.05, y, fam, transform=trans_left, ha="right", va="center",
+            fontsize=10, weight="bold", clip_on=False)
+        left_texts.append(txt)
+
+    # --- Bottom labels (x in DATA coords, y in AXES coords) -------------------
+    # Same blended transform, but tilt each word 45° so they stagger
+    trans_bottom = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
+    for x, fam in zip(family_centres, ordered_families):
+        txt = ax.text(
+            x,              # centred on its block
+            -0.05,          # just below the x-tick labels  (-0.12 ≈ one tick step)
+            fam,
+            transform=trans_bottom,
+            ha="right",     # anchor the right edge so text ‘fans out’ to the left
+            va="top",
+            rotation=45,    # 45° counter-clockwise
+            rotation_mode="anchor",   # rotate around that (ha, va) anchor point
+            fontsize=10,
+            weight="bold",
+            clip_on=False
+        )
+        bottom_texts.append(txt)
+
+    # -------------------------------------------------------------------------
+    # 4)  Dynamically enlarge the margins so every label fits
+    # -------------------------------------------------------------------------
+    fig.canvas.draw()                          # need a renderer first
+    renderer = fig.canvas.get_renderer()
+
+    all_bboxes = [
+        t.get_window_extent(renderer).transformed(fig.transFigure.inverted())
+        for t in (left_texts + bottom_texts)
+    ]
+    union = mtransforms.Bbox.union(all_bboxes)
+
+    # How far do labels poke outside the current figure?
+    left_extra   = max(0, -union.x0)
+    bottom_extra = max(0, -union.y0)
+
+    # Apply just enough extra space (keep existing margins if already bigger)
+    fig.subplots_adjust(
+        left  = max(fig.subplotpars.left,  left_extra   + 0.01),
+        bottom=max(fig.subplotpars.bottom, bottom_extra + 0.01),
     )
-    plt.tight_layout()
+
+    # -------------------------------------------------------------------------
+    ax.set_title(
+        f"{metric_name} Pearson Contrib "
+        f"(coef={results_long.loc[index, 'p_coef']:.3f}, "
+        f"pval={results_long.loc[index, 'p_pval']:.3f})"
+    )
+    fig.tight_layout()
+
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
-    plt.savefig(f"{metric_name}_pearson_contrib_{current_time}.png")
-    plt.close()
+    fig.savefig(f"{metric_name}_pearson_contrib_{current_time}.png")
+    plt.close(fig)
 
 
 def analyze_wikisize(matrix, metric_name, index, model_name):
