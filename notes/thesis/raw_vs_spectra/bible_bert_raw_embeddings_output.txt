@@ -1,0 +1,18 @@
+self.use_bible=True, self.use_un6=False, self.no_spectra=True, self.straight_spectra=False, self.use_bert=True, self.model_name='bert-base-multilingual-cased', self.layers=[12], self.num_bands=1, self.use_cache=False
+band=(0, 1)
+compute_overlaps
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |    0.505 |    0.000 |    0.527 |    0.000 |           52 |
+| lex_sim  |   -0.568 |    0.000 |   -0.564 |    0.000 |           35 |
+| fold     |   -0.146 |    0.419 |   -0.342 |    0.052 |           33 |
+| pho_sim  |   -0.393 |    0.000 |   -0.315 |    0.000 |          435 |
+kl_divergence_matrix
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |   -0.499 |    0.000 |   -0.534 |    0.000 |           52 |
+| lex_sim  |    0.560 |    0.000 |    0.555 |    0.001 |           35 |
+| fold     |    0.141 |    0.435 |    0.352 |    0.045 |           33 |
+| pho_sim  |    0.380 |    0.000 |    0.311 |    0.000 |          435 |
