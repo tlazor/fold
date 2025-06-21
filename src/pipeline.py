@@ -175,7 +175,7 @@ def star_fmt(p: float) -> str:
 formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
 
 
-def analyze_output(output, langs, f=None, model_name=None):
+def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False):
     readable_names = [Language.make(language=lang).display_name() for lang in langs]
 
     # show_heatmap(np.average(output, axis=0), readable_names)
@@ -246,7 +246,8 @@ def analyze_output(output, langs, f=None, model_name=None):
         flush=True,
     )
 
-    analyze_pearson_contrib(results_long, model_name)
+    if flag_analyze_pearson_contrib:
+        analyze_pearson_contrib(results_long, model_name)
 
 
 def analyze_pearson_contrib(results_long, model_name):
@@ -753,7 +754,7 @@ if __name__ == "__main__":
                 output = pipeline.fit_transform(None)
                 print(metric_transformer.name, output.shape, file=f)
 
-                analyze_output(output, langs, f=f, model_name=config.model_name)
+                analyze_output(output, langs, f=f, model_name=config.model_name, flag_analyze_pearson_contrib=config.analyze_pearson_contrib)
     finally:
         if f is not None:
             f.close()

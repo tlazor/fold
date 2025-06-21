@@ -149,5 +149,5 @@ if __name__ == "__main__":
                         pickle.dump(output, cache_file)
 
                 print(f"{layer=}", file=f)
-                analyze_output(output, langs, f=f, model_name=config.model_name)
+                analyze_output(output, langs, f=f, model_name=config.model_name, flag_analyze_pearson_contrib=config.analyze_pearson_contrib)
     f.close()

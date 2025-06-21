@@ -21,7 +21,7 @@ class PipelineOptions:
         )
         
         # Spectra options (mutually exclusive)
-        self.no_spectra = True
+        self.no_spectra = False
         self.straight_spectra = False
         
         # Validate mutual exclusion
@@ -30,6 +30,9 @@ class PipelineOptions:
         # Embedding pipeline specific options
         self.use_cache = False  # Set to False to force recomputation
         self.layers = [12]  # For embedding pipeline
+        
+        # Analysis options
+        self.analyze_pearson_contrib = False  # Control whether to analyze Pearson contribution
         
         # Frequency bands
         self.num_bands = 1
@@ -47,7 +50,8 @@ class PipelineOptions:
         spectra_options = [self.no_spectra, self.straight_spectra]
         true_count = sum(spectra_options)
         
-        if true_count != 1:
+        # 0 is fine, it means use welch's method
+        if true_count > 1:
             raise ValueError(
                 f"Exactly one spectra option must be True, but found {true_count} True values: "
                 f"no_spectra={self.no_spectra}, "
@@ -96,7 +100,8 @@ class PipelineOptions:
             f"{self.use_bible=}, {self.use_un6=}, "
             f"{self.no_spectra=}, {self.straight_spectra=}, "
             f"{self.use_bert=}, {self.model_name=}, "
-            f"{self.layers=}, {self.num_bands=}, {self.use_cache=}"
+            f"{self.layers=}, {self.num_bands=}, {self.use_cache=}, "
+            f"{self.analyze_pearson_contrib=}"
         )
         print(config_str, file=file, flush=True)
         return config_str
