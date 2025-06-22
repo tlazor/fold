@@ -1,0 +1,26 @@
+self.use_bible=True, self.use_un6=False, self.no_spectra=False, self.straight_spectra=False, self.use_bert=False, self.model_name='FacebookAI/xlm-roberta-base', self.layers=[12], self.num_bands=1, self.use_cache=False, self.analyze_pearson_contrib=False
+band=(0, 1)
+compute_overlaps
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |   -0.498 |    0.000 |   -0.463 |    0.001 |           52 |
+| lex_sim  |    0.499 |    0.002 |    0.597 |    0.000 |           35 |
+| fsi      |    0.536 |    0.001 |    0.573 |    0.000 |           34 |
+| pho_sim  |    0.481 |    0.000 |    0.421 |    0.000 |          465 |
+kl_divergence_matrix
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |   -0.528 |    0.000 |   -0.520 |    0.000 |           52 |
+| lex_sim  |    0.438 |    0.008 |    0.407 |    0.015 |           35 |
+| fsi      |    0.589 |    0.000 |    0.597 |    0.000 |           34 |
+| pho_sim  |    0.427 |    0.000 |    0.518 |    0.000 |          465 |
+coherence_fun
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |   -0.411 |    0.002 |   -0.399 |    0.003 |           52 |
+| lex_sim  |    0.626 |    0.000 |    0.629 |    0.000 |           35 |
+| fsi      |    0.506 |    0.002 |    0.514 |    0.002 |           34 |
+| pho_sim  |    0.308 |    0.000 |    0.265 |    0.000 |          465 |

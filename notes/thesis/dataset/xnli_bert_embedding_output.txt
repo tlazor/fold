@@ -1,0 +1,26 @@
+self.use_bible=False, self.use_un6=False, self.no_spectra=False, self.straight_spectra=False, self.use_bert=True, self.model_name='bert-base-multilingual-cased', self.layers=[12], self.num_bands=1, self.use_cache=False, self.analyze_pearson_contrib=False
+band=(0, 1)
+compute_overlaps
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |   -0.547 |    0.453 |    0.000 |    1.000 |            4 |
+| lex_sim  |    0.954 |    0.194 |    0.500 |    0.667 |            3 |
+| fsi      |   -0.151 |    0.606 |   -0.376 |    0.185 |           14 |
+| pho_sim  |   -0.301 |    0.014 |   -0.260 |    0.035 |           66 |
+kl_divergence_matrix
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |    0.536 |    0.464 |   -0.400 |    0.600 |            4 |
+| lex_sim  |    0.910 |    0.272 |    0.500 |    0.667 |            3 |
+| fsi      |    0.351 |    0.219 |    0.582 |    0.029 |           14 |
+| pho_sim  |    0.453 |    0.000 |    0.210 |    0.091 |           66 |
+coherence_fun
+layer=12
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| mut_int  |   -0.547 |    0.453 |    0.316 |    0.684 |            4 |
+| lex_sim  |   -0.251 |    0.839 |   -0.500 |    0.667 |            3 |
+| fsi      |   -0.177 |    0.546 |   -0.352 |    0.217 |           14 |
+| pho_sim  |   -0.378 |    0.002 |   -0.299 |    0.015 |           66 |
