@@ -1,6 +1,7 @@
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
+import warnings
 from joblib import Memory
 import langcodes
 from matplotlib.colors import TwoSlopeNorm
@@ -290,104 +291,128 @@ def analyze_pearson_contrib(results_long, model_name):
 
 
 def plot_pearson_contrib(matrix, metric_name, results_long, index):
+    if metric_name == "fold_en_row":
+        print(f"{matrix.loc['en']=}")
+        return
     # -------------------------------------------------------------------------
-    # 1) Derive an ordering that keeps family blocks contiguous
+    # §0)  Clean matrix ── drop rows/cols with *no* numerical values
     # -------------------------------------------------------------------------
-    all_langs = list(matrix.columns)                       # original col order
-    family_blocks = {}
-    for lang in all_langs:
-        fam = constants.lang2family.get(lang, f"Unknown:{lang}")
-        family_blocks.setdefault(fam, []).append(lang)
+    matrix = matrix.apply(pd.to_numeric, errors='coerce')          # force numeric
+    matrix = matrix.dropna(axis=0, how='all').dropna(axis=1, how='all')
 
-    ordered_families = sorted(family_blocks)               # global family order
-    ordered_langs  = [lng for fam in ordered_families
-                            for lng in family_blocks[fam]]
-
-    matrix = matrix.loc[ordered_langs, ordered_langs]      # re-index
+    if matrix.empty or matrix.notna().sum().sum() == 0:
+        warnings.warn("Nothing to plot – every row/column lacked numerical data.")
+        return
 
     # -------------------------------------------------------------------------
-    # 2) Plot
+    # 1)  Derive a FAMILY-based ordering *separately* for rows and columns
     # -------------------------------------------------------------------------
-    vmin, vmax = np.min(matrix.values), np.max(matrix.values)
-    norm  = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    def order_by_family(lang_list):
+        """Return languages ordered by family (alphabetically) then original."""
+        blocks = {}
+        for lang in lang_list:
+            fam = constants.lang2family.get(lang, f"Unknown:{lang}")
+            blocks.setdefault(fam, []).append(lang)
+        ordered_families = sorted(blocks)
+        ordered_langs    = [lng for fam in ordered_families for lng in blocks[fam]]
+        return ordered_langs, ordered_families, blocks
 
-    fig, ax = plt.subplots(figsize=(10, 8))
-    im = ax.imshow(matrix, cmap="coolwarm", norm=norm, interpolation="nearest")
+    ordered_rows,  row_families,  row_blocks  = order_by_family(list(matrix.index))
+    ordered_cols,  col_families,  col_blocks  = order_by_family(list(matrix.columns))
+
+    matrix = matrix.loc[ordered_rows, ordered_cols]               # rectangular OK
+
+    # -------------------------------------------------------------------------
+    # 2)  Plot
+    # -------------------------------------------------------------------------
+    vmin, vmax = np.nanmin(matrix.values), np.nanmax(matrix.values)
+    norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+
+    # ---------------------------------------------------------------------
+    # 2-α)  Pick a sensible figure-height:      ≈ 0.40 inch per row,
+    #        but clamped to the range 3–12 in.  Keeps small matrices neat.
+    # ---------------------------------------------------------------------
+    rows        = len(ordered_rows)
+    fig_height  = np.clip(rows * 0.40 + 1.5, 2, 12)   # +1.5" for tick-labels etc.
+    fig_width   = 10                                   # keep width constant
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    im = ax.imshow(matrix, cmap="coolwarm", norm=norm, interpolation="nearest",
+                   aspect="auto")              # aspect='auto' → rectangular cells
     fig.colorbar(im, ax=ax, label="Score")
 
     # ----  language ticks ----
-    ax.set_xticks(np.arange(len(ordered_langs)))
-    ax.set_xticklabels(ordered_langs, rotation=90)
-    ax.set_yticks(np.arange(len(ordered_langs)))
-    ax.set_yticklabels(ordered_langs)
+    ax.set_xticks(np.arange(len(ordered_cols)))
+    ax.set_xticklabels(ordered_cols, rotation=90)
+    ax.set_yticks(np.arange(len(ordered_rows)))
+    ax.set_yticklabels(ordered_rows)
 
-    # ----  optional dashed gridlines marking family boundaries ----
+    # ----  dashed gridlines marking family boundaries (rows) ----
     pos = 0
-    for fam in ordered_families[:-1]:
-        pos += len(family_blocks[fam])
+    for fam in row_families[:-1]:
+        pos += len(row_blocks[fam])
         ax.axhline(pos - 0.5, lw=0.6, ls="--", alpha=0.5, color="black")
+
+    # ----  dashed gridlines marking family boundaries (columns) ----
+    pos = 0
+    for fam in col_families[:-1]:
+        pos += len(col_blocks[fam])
         ax.axvline(pos - 0.5, lw=0.6, ls="--", alpha=0.5, color="black")
 
     # -------------------------------------------------------------------------
-    # 3)  FAMILY LABELS  ── left & bottom, with auto-margin
+    # 3)  FAMILY LABELS  ── left for rows, bottom for columns
     # -------------------------------------------------------------------------
-    family_centres = []
+    # --- row-side labels ------------------------------------------------------
+    row_centres = []
     counter = 0
-    for fam in ordered_families:
-        n = len(family_blocks[fam])
-        family_centres.append(counter + n / 2 - 0.5)
+    for fam in row_families:
+        n = len(row_blocks[fam])
+        row_centres.append(counter + n / 2 - 0.5)
         counter += n
 
-    left_texts   = []
-    bottom_texts = []
-
-    # --- Left-hand labels (x in AXES coords, y in DATA coords) ---------------
     trans_left = mtransforms.blended_transform_factory(ax.transAxes, ax.transData)
-    for y, fam in zip(family_centres, ordered_families):
-        txt = ax.text(
-            -0.05, y, fam, transform=trans_left, ha="right", va="center",
-            fontsize=10, weight="bold", clip_on=False)
-        left_texts.append(txt)
+    left_texts = [
+        ax.text(-0.05, y, fam, transform=trans_left,
+                ha="right", va="center", fontsize=10, weight="bold", clip_on=False)
+        for y, fam in zip(row_centres, row_families)
+    ]
 
-    # --- Bottom labels (x in DATA coords, y in AXES coords) -------------------
-    # Same blended transform, but tilt each word 45° so they stagger
+    # --- column-bottom labels -------------------------------------------------
+    col_centres = []
+    counter = 0
+    for fam in col_families:
+        n = len(col_blocks[fam])
+        col_centres.append(counter + n / 2 - 0.5)
+        counter += n
+
+    # Dynamic vertical offset  ↓↓↓
+    #   * fig_height was chosen earlier (see §2-α in the previous answer)
+    #   * when fig_height ≤ 6" we start to push the labels down
+    base_offset   = -0.05                         # original value
+    extra_offset  = max(0, (6 - fig_height)) * -0.15
+    bottom_offset = base_offset + extra_offset    # more negative → further down
+
     trans_bottom = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
-    for x, fam in zip(family_centres, ordered_families):
-        txt = ax.text(
-            x,              # centred on its block
-            -0.05,          # just below the x-tick labels  (-0.12 ≈ one tick step)
-            fam,
-            transform=trans_bottom,
-            ha="right",     # anchor the right edge so text ‘fans out’ to the left
-            va="top",
-            rotation=45,    # 45° counter-clockwise
-            rotation_mode="anchor",   # rotate around that (ha, va) anchor point
-            fontsize=10,
-            weight="bold",
-            clip_on=False
-        )
-        bottom_texts.append(txt)
+    bottom_texts = [
+        ax.text(x, bottom_offset, fam,            # <── only this line changed
+                transform=trans_bottom,
+                ha="right", va="top",
+                rotation=45, rotation_mode="anchor",
+                fontsize=10, weight="bold", clip_on=False)
+        for x, fam in zip(col_centres, col_families)
+    ]
 
     # -------------------------------------------------------------------------
     # 4)  Dynamically enlarge the margins so every label fits
     # -------------------------------------------------------------------------
-    fig.canvas.draw()                          # need a renderer first
+    fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
-
-    all_bboxes = [
-        t.get_window_extent(renderer).transformed(fig.transFigure.inverted())
-        for t in (left_texts + bottom_texts)
-    ]
+    all_bboxes = [t.get_window_extent(renderer).transformed(fig.transFigure.inverted())
+                  for t in (left_texts + bottom_texts)]
     union = mtransforms.Bbox.union(all_bboxes)
 
-    # How far do labels poke outside the current figure?
-    left_extra   = max(0, -union.x0)
-    bottom_extra = max(0, -union.y0)
-
-    # Apply just enough extra space (keep existing margins if already bigger)
     fig.subplots_adjust(
-        left  = max(fig.subplotpars.left,  left_extra   + 0.01),
-        bottom=max(fig.subplotpars.bottom, bottom_extra + 0.01),
+        left  = max(fig.subplotpars.left,  max(0, -union.x0) + 0.01),
+        bottom=max(fig.subplotpars.bottom, max(0, -union.y0) + 0.01),
     )
 
     # -------------------------------------------------------------------------
@@ -401,7 +426,6 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")[:-2]
     fig.savefig(f"{metric_name}_pearson_contrib_{current_time}.png")
     plt.close(fig)
-
 
 def analyze_wikisize(matrix, metric_name, index, model_name):
     # iterate through each language pair in matrix
@@ -458,7 +482,6 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
     )
 
     # create a scatter plot of pearson_contrib vs min_size
-    plt.figure(figsize=(10, 8))
     plt.scatter(size_df["min_size"], size_df["pearson_contrib"])
     plt.xlabel("Min Size")
     plt.ylabel("Pearson Contrib")
@@ -467,7 +490,6 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
     plt.savefig(f"{metric_name}_pearson_contrib_vs_min_size_{current_time}.png")
     plt.close()
     # create a scatter plot of pearson_contrib vs max_size
-    plt.figure(figsize=(10, 8))
     plt.scatter(size_df["max_size"], size_df["pearson_contrib"])
     plt.xlabel("Max Size")
     plt.ylabel("Pearson Contrib")
@@ -523,7 +545,6 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
     )
 
     # create a scatter plot of pearson_contrib vs min_size
-    plt.figure(figsize=(10, 8))
     plt.scatter(size_df["min_size"], size_df["pearson_contrib"])
     plt.xlabel("Min Size")
     plt.ylabel("Pearson Contrib")
