@@ -15,13 +15,14 @@ footer: '**Thom Lazor**
 ---
 
 <!-- header: 'Table of contents' -->
-**Motivation** 
+**Motivation**
+Related Work
 Research questions & contributions 
 Background  
 Methodology  
 Experiments  
 Results  
-Discussion & limitations  
+Limitations  
 Future work
 
 ---
@@ -55,12 +56,80 @@ Quantifying how *dissimilar* two languages are helps to
 ---
 <!-- header: 'Table of contents' -->
 Motivation
+**Related Work**
+Research questions & contributions  
+Background  
+Methodology  
+Experiments  
+Results  
+Limitations  
+Future work
+
+---
+<!-- header: 'Related Work – Linguistic Distance Metrics' -->
+<style scoped>
+  table.periodicities        { font-size: 0.72em; margin: 0 auto; }
+</style>
+
+<table class="periodicities">
+  <thead>
+    <tr>
+      <th>Approach</th>
+      <th>Signal</th>
+      <th>Strengths</th>
+      <th>Blind spots</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Cognate / string</strong><br>(Swadesh LD, ASJP)</td>
+      <td>Word lists</td>
+      <td>Simple, interpretable</td>
+      <td>Ignores syntax &amp; discourse</td>
+    </tr>
+    <tr>
+      <td><strong><em>n</em>-gram divergences</strong><br>(KL on trigram LMs)</td>
+      <td>Probability dists.</td>
+      <td>Captures ordering</td>
+      <td>Data sparseness, tokenization bias</td>
+    </tr>
+    <tr>
+      <td><strong>Embedding geometry</strong><br>(multilingual skip-gram, mBERT vecs)</td>
+      <td>Vector space</td>
+      <td>Dense, model-led</td>
+      <td>Model-specific; opaque</td>
+    </tr>
+    <tr>
+      <td><strong>Typological overlap</strong><br>(WALS, URIEL)</td>
+      <td>Expert features</td>
+      <td>Human-readable</td>
+      <td>Sparse, coarse, costly</td>
+    </tr>
+  </tbody>
+</table>
+
+*Most compute **time-domain** distances; periodic structure remains untapped.*
+
+---
+<!-- header: 'Related Work – Signal-Processing in NLP' -->
+**Text as a signal**
+* Spectral peaks in letter / word streams → authorship, topic keywords.
+* DFT reveals **long-range correlations** and stylistic rhythms.
+
+**Neural frequency signatures**
+* Embedding eigen-spectra expose anisotropy.  
+* Attention heads approximate Kalman filters.  
+
+---
+<!-- header: 'Table of contents' -->
+Motivation
+Related Work
 **Research questions & contributions**  
 Background  
 Methodology  
 Experiments  
 Results  
-Discussion & limitations  
+Limitations  
 Future work
 
 ---
@@ -79,12 +148,13 @@ Future work
 
 <!-- header: 'Table of contents' -->
 Motivation
+Related Work
 Research questions & contributions  
 **Background**  
 Methodology  
 Experiments  
 Results  
-Discussion & limitations  
+Limitations  
 Future work
 
 ---
@@ -106,18 +176,117 @@ Future work
 * **FSI learning time** – weeks for English L1 diplomats
 
 ---
-<!-- header: 'Multilingual Transformers' -->
-* **mBERT** (110M params, 110k vocab, 104 langs)  
-* **XLM-R** base (270M params, 250k vocab, 100 langs)  
-* Shared sub-word vocabularies **→** aligned embedding space  
+<!-- header: 'Language Modelling in a Nutshell' -->
+*Goal:* assign a probability to a token sequence  
+$
+   P(w_{1:n})=\prod_{t=1}^{n}P(w_t\mid w_{1:t-1})
+$
+
+<style scoped>
+  table.periodicities        { font-size: 0.72em; margin: 0 auto; }
+</style>
+
+<table class="periodicities">
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>Context window</th>
+      <th>Drawbacks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><em>n</em>-gram, Katz/Kneser smoothing</td>
+      <td>fixed <span style="white-space:nowrap;">(n−1)</span> tokens</td>
+      <td>sparsity, short range</td>
+    </tr>
+    <tr>
+      <td>Continuous <em>n</em>-gram (word2vec)</td>
+      <td>fixed</td>
+      <td>still local</td>
+    </tr>
+    <tr>
+      <td>RNN / LSTM / GRU</td>
+      <td><em>unbounded</em> (sequential)</td>
+      <td>slow, vanishing grads</td>
+    </tr>
+    <tr>
+      <td><strong>Transformers</strong></td>
+      <td>full sentence (parallel)</td>
+      <td>&mdash;</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+<!-- header: 'Neural Language Models' -->
+**Recurrent** (LSTM/GRU)  
+$
+   \mathbf{h}_t = f(\mathbf{h}_{t-1}, \mathbf{e}(w_t))
+$
+unbounded history, but sequential updates.
+
+**Attention** replaces recurrence  
+$
+   \text{Attn}(Q,K,V)=\operatorname{softmax}\!\bigl(QK^{\!\top}/\sqrt{d_k}\bigr)V
+$
+
+**Transformer layer** = Multi-Head Attention + Feed-Forward + Residual & LayerNorm.  
+Stacking layers yields deeply contextual embeddings
+
+---
+<!-- header: 'mBERT/XLM-R' -->
+*Pre-trained language encoders that share parameters across dozens of languages.*
+ 
+- **Training objective** – masked-language modelling (MLM) on mixed-language corpora
+- **Sub-word vocabulary** – WordPiece (mBERT 110 k) or SentencePiece-BPE (XLM-R 250 k) built jointly across languages → **shared embedding space**.  
+- **Emergent alignment**  
+  - Cross-lingual tokens with similar context land near one another.  
+  - Mid-layers capture phonology & morphology; upper layers encode syntax & semantics.
 
 ---
 <!-- header: 'Fourier Transform' -->
-x
+*Transforms a time-domain signal into its frequency components.*
+
+$
+  X(f)=\mathcal{F}\{x(t)\}
+      =\int_{-\infty}^{\infty} x(t)\,e^{-j2\pi f t}\,dt
+$
+
+* **Discrete variant**:
+  $
+    X[k]=\sum_{n=0}^{N-1} x[n]\,
+         e^{-j\,2\pi k n / N},
+    \qquad k=0,\dots,N-1
+  $
+
+* **Energy <> variance**:  
+  $\sum_{n}|x[n]|^{2}=\tfrac{1}{N}\sum_{k}|X[k]|^{2}$
+
 
 ---
 <!-- header: 'Welchs Method' -->
-x
+*Variance-reduced estimate of the power spectral density (PSD).*
+
+1. **Segment** the signal into \(K\) overlapping frames of length \(L\)  
+   (e.g. 50 % overlap, Hann window (w[n])).
+2. **Window** each frame: $x_i^{w}[n]=x_i[n]\;w[n]$.
+3. **Periodogram per frame**  
+
+   $
+     P_i(f)=\frac{1}{U}\,
+            \bigl|\mathcal{F}\{x_i^{w}\}(f)\bigr|^{2},
+     \quad
+     U=\tfrac{1}{L}\sum_{n}w^{2}[n]
+   $
+
+4. **Average** the periodograms  
+
+   $
+     \hat{P}_{\text{Welch}}(f)=
+     \frac{1}{K}\sum_{i=1}^{K} P_i(f)
+   $ 
+
 
 ---
 <!-- header: 'Why Spectra?' -->
@@ -214,12 +383,13 @@ $
 ---
 <!-- header: 'Table of contents' -->
 Motivation
+Related Work
 Research questions & contributions  
 Background 
 **Methodology**   
 Experiments  
 Results  
-Discussion & limitations  
+Limitations  
 Future work
 
 ---
@@ -238,11 +408,42 @@ Future work
     $$
 - **Magnitude-Squared Coherence**  
     $$
-        C_{xy}(f)=\frac{|G_{xy}(f)|²}{G_{xx}(f) G_{yy}(f)}
+        D_{\mathrm{C}}\!\bigl(l_1, l_2\bigr)=\frac{1}{K}\sum_{k=1}^{K}\frac{\lvert G_{l_1l_2}(f_k)\rvert^{2}}{G_{l_1l_1}(f_k)\,G_{l_2l_2}(f_k)}
     $$
 
 ---
 <!-- header: 'Datasets' -->
+<style scoped>
+  table.periodicities        { font-size: 0.72em; margin: 0 auto; }
+</style>
+
+<table class="periodicities">
+  <thead>
+    <tr>
+      <th>Corpus</th>
+      <th>Domain / unit</th>
+      <th>Languages</th>
+      <th>Sampled size</th>
+      <th>Remarks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>XNLI</strong><br>(Conneau 2018)</td>
+      <td>Multi-genre sentences</td>
+      <td>15&nbsp;(14&nbsp;+&nbsp;EN)</td>
+      <td>600 × sentences (≥ 20 tokens)</td>
+      <td>Machine-translated; balanced modern prose</td>
+    </tr>
+    <tr>
+      <td><strong>Bible-Corpus</strong><br>(Christodouloupoulos 2015)</td>
+      <td>Verse-aligned scripture</td>
+      <td>100</td>
+      <td>600 × verses (≥ 20 tokens)</td>
+      <td>39 langs &lt; 1 M speakers; broad family spread</td>
+    </tr>
+  </tbody>
+</table>
 
 
 ---
@@ -267,27 +468,14 @@ Future work
 ---
 <!-- header: 'Table of contents' -->
 Motivation
+Related Work
 Research questions & contributions  
 Background 
 Methodology   
 **Experiments**  
 Results  
-Discussion & limitations  
+Limitations  
 Future work
-
----
-<!-- header: 'Experiments' -->
-- **E1** Time- vs. frequency-domain signals  
-- **E2** Model robustness (mBERT/XLM-R)  
-- **E3** Dataset robustness (Bible/XNLI)  
-- **E4** Layer-wise probe (12 layers)  
-- **E5** Sliding frequency windows (.04 & .10 bandwidth)  
-- **E6** WALS feature probing
-<small>
-**RQ1** – Do spectral metrics correlate with phonemic, lexical, cognitive & pedagogical baselines?  
-**RQ2** – Are the metrics model- and dataset-agnostic?  
-**RQ3** – Which frequency bands drive the correlation, and do they reflect typological traits?
-</small>
 
 ---
 <!-- header: 'Experiments' -->
@@ -330,12 +518,13 @@ Future work
 ---
 <!-- header: 'Table of contents' -->
 Motivation
+Related Work
 Research questions & contributions  
 Background 
 Methodology   
 Experiments  
 **Results**  
-Discussion & limitations  
+Limitations  
 Future work
 
 ---
@@ -346,8 +535,6 @@ Future work
 | Lexical  | **0.67** | Coherence / embed |
 | Intellig. | **–0.54** | Coherence / embed |
 | FSI weeks | **0.52** | Coherence / embed *Spearman |
-
-* Two hot bands: **4–8 %** & **58–80 %** of Nyquist
 
 ---
 <!-- header: E1: Time vs Frequency (Likelihood) -->
@@ -463,7 +650,7 @@ Cells are highlighted when the two coefficients differ by more than 0.10; within
 <img src="images/ex4_kl.png" class="full-width">
 
 ---
-<!-- header: E5: mBERT Layer Investigation (Spectral Overlap) -->
+<!-- header: E5: Impact of Band Limiting (Overlap) -->
 <style scoped>
   /* make *all* images on this slide 65 % wide and center them */
   img.full-width {
@@ -478,9 +665,8 @@ Cells are highlighted when the two coefficients differ by more than 0.10; within
 
 <img src="images/ex5_.1.png" class="full-width">
 
-
 ---
-<!-- header: E5: mBERT Layer Investigation (Spectral KL) -->
+<!-- header: E5: Impact of Band Limiting (Overlap) -->
 <style scoped>
   /* make *all* images on this slide 65 % wide and center them */
   img.full-width {
@@ -496,51 +682,170 @@ Cells are highlighted when the two coefficients differ by more than 0.10; within
 <img src="images/ex5_.04.png" class="full-width">
 
 ---
+<!-- header: E6: Typological Modulation Effects (26A, Prefixing vs. Suffixing)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex6_26a.png" class="full-width">
+
+value 3: moderate preference for suffixing
+
+---
+<!-- header: Pointwise Pearson Contribution (Spectral KL, FSI) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 85%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/contrib_fsi.png" class="full-width">
+
+---
+<!-- header: Pointwise Pearson Contribution (Spectral KL, Lexical) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 59%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/contrib_lex.png" class="full-width">
+
+---
+<!-- header: Pointwise Pearson Contribution (Spectral KL, Mutual Intelligibility) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 59%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/contrib_mut.png" class="full-width">
+
+---
+<!-- header: Pointwise Pearson Contribution (Spectral KL, Phonemic) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 60%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/contrib_pho.png" class="full-width">
+
+---
+<!-- header: Wikisize Investigation (Spectral KL) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 80%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wikisize.png" class="full-width">
+
+---
 <!-- header: 'Table of contents' -->
 Motivation
+Related Work
 Research questions & contributions  
 Background 
 Methodology   
 Experiments  
 Results  
-**Discussion & limitations**  
+**Limitations**  
 Future work
 
 ---
-<!-- header: 'Strengths' -->
-* Annotation-free & scalable (100 + langs)  
-* Integrates multiple linguistic layers  
-* Stable across models, corpora, layers
+<!-- header: 'Advantages' -->
+- **No linguistic annotation required.**  
+  Operates on raw text plus a pre-trained multilingual model, bypassing costly typological coding, phonemic transcription, or crowdsourced intelligibility tests.
+
+- **Captures multi-level structure.**  
+  Transformer embeddings bake in phonological, morphological, and syntactic cues, so the resulting spectra integrate evidence across linguistic subsystems rather than targeting a single facet.
+
+- **Inter-model portability.**  
+  Comparable results with mBERT and XLM-R suggest the metric is not tied to any specific vocabulary or training regime, making it future-proof as larger multilingual models appear.
 
 ---
-<!-- header: 'Limitations' -->
-* Frequency spikes are indirect to interpret  
-* May be sensitive to tokenization  
-* KL asymmetry too mild for intelligibility gaps  
-* Few large parallel corpora
+<!-- header: 'Drawbacks' -->
+
+- **Interpretability.**  
+  While frequency bands may be linked *post hoc* to linguistic phenomena, the mapping is indirect; a spike at \(60\,\%\) of Nyquist is harder to interpret than “40 % cognate overlap.’’
+
+- **Dependence on subword tokenization.**  
+  BPE / SentencePiece units blur morpheme boundaries, potentially smearing high-frequency cues such as inflectional affixes or clitics.
+
+- **Asymmetry limits.**  
+  KL divergence encodes only mild directionality, while overlap and coherence are symmetric. Future work needs metrics whose asymmetry more closely mirrors the sharply asymmetric nature of mutual intelligibility.
+
+---
+<!-- header: 'Methodological Limitations' -->
+
+The study covers 100 languages, only a fraction of the 7,000+ attested worldwide. Baseline measures are likewise sparse:
+
+- Mutual-intelligibility data exist mainly for closely related languages; the dataset spans just three Indo-European subfamilies.  
+- The FSI scale is English-centric, rating only distances from English.  
+- The lexical baseline supports only a subset of language pairs.
+
+Corpus coverage is uneven:  
+- **Bible** offers 100 languages but a single (often archaic) genre.  
+- **XNLI** spans just 15 languages, 14 of which are machine-translated from English, though it is at least multi-genre.
 
 ---
 <!-- header: 'Table of contents' -->
 Motivation
+Related Work
 Research questions & contributions  
 Background 
 Methodology   
 Experiments  
 Results  
-Discussion & limitations  
+Limitations  
 **Future work**
 
 ---
 <!-- header: 'Future Work' -->
-* Add syntactic baselines  
+* Add syntactic baseline  
 * Compare time-domain cross-correlation  
 * Test more genres & dialect continua  
 * Try **cepstral** analysis for harmonic structures  
-* Design strongly asymmetric spectral metrics
-
----
-<!-- header: 'Take-Home Message' -->
-**Spectral fingerprints of multilingual-transformer signals give an annotation-free and faithful measure of linguistic distance, bridging neural representations with classical typology.**
+* test on dialect corpora
 
 ---
 <!-- header: 'Appendix' -->
@@ -568,3 +873,54 @@ Likelihood spectral metric correlations on the XNLI and Bible corpora. Cells are
 
 Embedding spectral metric correlations on the XNLI and Bible corpora. 
 Cells are highlighted when the two coefficients differ by more than 0.10; within those pairs, the larger significant coefficient is additionally shown in bold. *p < 0.05.
+
+---
+<!-- header: E5: mBERT Layer Investigation (Spectral Overlap) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex5_.1_kl.png" class="full-width">
+
+
+---
+<!-- header: E5: mBERT Layer Investigation (Spectral KL) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex5_.04_kl.png" class="full-width">
+
+---
+<!-- header: E6: Typological Modulation Effects (26A, Prefixing vs. Suffixing)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex6_26.png" class="full-width">
+
+value 3: moderate preference for suffixing
