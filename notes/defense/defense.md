@@ -242,13 +242,27 @@ Future work
     $$
 
 ---
+<!-- header: 'Datasets' -->
+
+
+---
+<!-- header: 'Models' -->
+
+| Model              | Parameters | Vocabulary size | Languages |
+|--------------------|-----------:|----------------:|-----------|
+| **mBERT**          | 110 M      | 110 k           | 104       |
+| **XLM-R (base)**   | 270 M      | 250 k           | 100       |
+
+---
 <!-- header: 'Experimental Pipeline' -->
-1. **Datasets**: Bible-Corpus (100 langs), XNLI (15 langs)  
-2. Encode with mBERT & XLM-R  
-3. Extract token likelihoods/embeddings  
-4. Compute PSD via Welch  
-5. Compute Overlap, KL, Coherence for every pair  
-6. Correlate with 4 baselines
+
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 100%; height: auto; max-width: none; }
+</style>
+
+<img src="images/pipeline_figure.png" class="full-width">
+
 
 ---
 <!-- header: 'Table of contents' -->
@@ -269,6 +283,49 @@ Future work
 - **E4** Layer-wise probe (12 layers)  
 - **E5** Sliding frequency windows (.04 & .10 bandwidth)  
 - **E6** WALS feature probing
+<small>
+**RQ1** – Do spectral metrics correlate with phonemic, lexical, cognitive & pedagogical baselines?  
+**RQ2** – Are the metrics model- and dataset-agnostic?  
+**RQ3** – Which frequency bands drive the correlation, and do they reflect typological traits?
+</small>
+
+---
+<!-- header: 'Experiments' -->
+<style scoped>
+  .exp-layout {
+    display: flex;
+    gap: 1.5rem;          /* space between columns */
+  }
+  .exp-main {             /* left column */
+    flex: 0 0 60%;
+  }
+  .exp-rq {               /* right column box */
+    flex: 1;
+    border-left: 3px solid var(--theme-color, #555);
+    padding-left: 1rem;
+    font-size: 0.85em;    /* make it a bit subtler */
+    opacity: 0.85;
+  }
+</style>
+
+<div class="exp-layout">
+  <!-- Experiments list -->
+  <div class="exp-main">
+    <strong>E1</strong>  Time- vs. frequency-domain signals<br>
+    <strong>E2</strong>  Model robustness (mBERT / XLM-R)<br>
+    <strong>E3</strong>  Dataset robustness (Bible / XNLI)<br>
+    <strong>E4</strong>  Layer-wise probe (12 layers)<br>
+    <strong>E5</strong>  Sliding freq. windows (.04 & .10 BW)<br>
+    <strong>E6</strong>  WALS feature probing
+  </div>
+
+  <!-- RQs for reference -->
+  <div class="exp-rq">
+    <strong>RQ1</strong> – Do spectral metrics correlate with phonemic, lexical, cognitive & pedagogical baselines?<br>  
+    <strong>RQ2</strong> – Are the metrics model- and dataset-agnostic?<br>  
+    <strong>RQ3</strong> – Which frequency bands drive the correlation, and do they reflect typological traits?  
+  </div>
+</div>
 
 ---
 <!-- header: 'Table of contents' -->
@@ -283,14 +340,49 @@ Future work
 
 ---
 <!-- header: 'Key Results' -->
-| Baseline | Best r | Metric / Signal |
+| Baseline | Pearson r | Metric / Signal |
 |----------|-------:|-----------------|
 | Phonemic | **0.62** | Coherence / embed |
 | Lexical  | **0.67** | Coherence / embed |
 | Intellig. | **–0.54** | Coherence / embed |
-| FSI weeks | **0.57** | Spectral KL / embed |
+| FSI weeks | **0.52** | Coherence / embed *Spearman |
 
 * Two hot bands: **4–8 %** & **58–80 %** of Nyquist
+
+---
+<!-- header: E1: Time vs Frequency (Likelihood) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 100%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex1_like.png" class="full-width">
+
+Likelihood correlations comparing distance metrics in the time domain and frequency domain. *p < 0.05. Bold indicates the larger (absolute) coefficient of the two significant values in each time-vs-frequency pair.
+
+---
+<!-- header: E1: Time vs Frequency (Embeddings) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 100%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex1_embed.png" class="full-width">
+
+
+Embedding correlations comparing distance metrics in the time domain and frequency domain. *p < 0.05. Bold indicates the larger (absolute) coefficient of the two significant values in each time-vs-frequency pair.
+
+---
+<!-- header: E1: Coherence -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 100%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex1_coh.png" class="full-width">
+
+Spearman ($s_{coef}$) and Pearson ($p_{coef}$) correlations for likelihoods and embeddings with the coherence measure. 
+*p < 0.05. Bold marks the larger (absolute) significant coefficient in each likelihood-vs-embedding pair.
 
 ---
 <!-- header: 'Table of contents' -->
