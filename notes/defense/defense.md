@@ -385,6 +385,117 @@ Spearman ($s_{coef}$) and Pearson ($p_{coef}$) correlations for likelihoods and 
 *p < 0.05. Bold marks the larger (absolute) significant coefficient in each likelihood-vs-embedding pair.
 
 ---
+<!-- header: E2: Metric Robustness to Models (Likelihood) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 88%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex2_like.png" class="full-width">
+
+Likelihood spectral metric correlations with mBERT and XLM-R on the updated dataset. Highlighted cells mark coefficient pairs whose absolute difference exceeds 0.10; within those pairs, the larger significant coefficient is additionally shown in bold. *p < 0.05.
+
+---
+<!-- header: E2: Metric Robustness to Models (Embedding) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 88%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex2_embed.png" class="full-width">
+
+Embedding spectral metric correlations with mBERT and XLM-R. Highlighted cells show coefficient pairs that differ by more than 0.10; within each pair, the larger significant coefficient is additionally shown in bold. *p < 0.05.
+
+---
+<!-- header: E3: Metric Robustness to Dataset (Likelihood) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 88%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex3_like.png" class="full-width">
+
+Likelihood spectral metric correlations on the XNLI and Bible corpora. Cells are highlighted when the two coefficients differ by more than 0.10; within those pairs, the larger significant coefficient is additionally shown in bold. *p < 0.05.
+
+---
+<!-- header: E3: Metric Robustness to Dataset (Embedding) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 88%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex3_embed.png" class="full-width">
+
+Embedding spectral metric correlations on the XNLI and Bible corpora. 
+Cells are highlighted when the two coefficients differ by more than 0.10; within those pairs, the larger significant coefficient is additionally shown in bold. *p < 0.05.
+
+---
+<!-- header: E4: mBERT Layer Investigation (Spectral Overlap) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 67%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex4_over.png" class="full-width">
+
+
+---
+<!-- header: E4: mBERT Layer Investigation (Spectral KL) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 67%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex4_kl.png" class="full-width">
+
+---
+<!-- header: E5: mBERT Layer Investigation (Spectral Overlap) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex5_.1.png" class="full-width">
+
+
+---
+<!-- header: E5: mBERT Layer Investigation (Spectral KL) -->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/ex5_.04.png" class="full-width">
+
+---
 <!-- header: 'Table of contents' -->
 Motivation
 Research questions & contributions  
@@ -431,4 +542,29 @@ Discussion & limitations
 <!-- header: 'Take-Home Message' -->
 **Spectral fingerprints of multilingual-transformer signals give an annotation-free and faithful measure of linguistic distance, bridging neural representations with classical typology.**
 
+---
+<!-- header: 'Appendix' -->
 
+
+---
+<!-- header: E3: Metric Robustness to Dataset (Likelihood, XLMR) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 88%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex3_like_xlmr.png" class="full-width">
+
+Likelihood spectral metric correlations on the XNLI and Bible corpora. Cells are highlighted when the two coefficients differ by more than 0.10; within those pairs, the larger significant coefficient is additionally shown in bold. *p < 0.05.
+
+---
+<!-- header: E3: Metric Robustness to Dataset (Embedding, XLMR) -->
+<style scoped>
+  /* make *all* images on this slide use the full width */
+  img.full-width { width: 88%; height: auto; max-width: none; }
+</style>
+
+<img src="images/ex3_embed_xlmr.png" class="full-width">
+
+Embedding spectral metric correlations on the XNLI and Bible corpora. 
+Cells are highlighted when the two coefficients differ by more than 0.10; within those pairs, the larger significant coefficient is additionally shown in bold. *p < 0.05.
