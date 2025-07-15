@@ -529,12 +529,12 @@ Future work
 
 ---
 <!-- header: 'Key Results' -->
-| Baseline | Pearson r | Metric / Signal |
+| Baseline | Pearson r | Note |
 |----------|-------:|-----------------|
-| Phonemic | **0.62** | Coherence / embed |
-| Lexical  | **0.67** | Coherence / embed |
-| Intellig. | **–0.54** | Coherence / embed |
-| FSI weeks | **0.52** | Coherence / embed *Spearman |
+| Phonemic | **0.62** |  -- |
+| Lexical  | **0.67** |  -- |
+| Intellig. | **–0.54** |  -- |
+| FSI weeks | **0.52** | *Spearman |
 
 ---
 <!-- header: E1: Time vs Frequency (Likelihood) -->
@@ -698,6 +698,24 @@ Cells are highlighted when the two coefficients differ by more than 0.10; within
 <img src="images/ex6_26a.png" class="full-width">
 
 value 3: moderate preference for suffixing
+
+---
+<!-- header: E6: Typological Modulation Effects (51A, Case Affixes)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_51a.png" class="full-width">
+
+value 9: Neither case affixes nor adpositional clitics
 
 ---
 <!-- header: Pointwise Pearson Contribution (Spectral KL, FSI) -->
@@ -908,7 +926,7 @@ Cells are highlighted when the two coefficients differ by more than 0.10; within
 <img src="images/ex5_.04_kl.png" class="full-width">
 
 ---
-<!-- header: E6: Typological Modulation Effects (26A, Prefixing vs. Suffixing)-->
+<!-- header: E6: Typological Modulation Effects (3A, Consonant-Vowel Ratio)-->
 <style scoped>
   /* make *all* images on this slide 65 % wide and center them */
   img.full-width {
@@ -921,6 +939,118 @@ Cells are highlighted when the two coefficients differ by more than 0.10; within
   }
 </style>
 
-<img src="images/ex6_26.png" class="full-width">
+<img src="images/wals_3a.png" class="full-width">
 
-value 3: moderate preference for suffixing
+---
+<!-- header: E6: Typological Modulation Effects (12A, Syllable Structure)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_12a.png" class="full-width">
+
+---
+<!-- header: E6: Typological Modulation Effects (17A, Rhythm Types)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_17a.png" class="full-width">
+
+---
+<!-- header: E6: Typological Modulation Effects (27A, Reduplication)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_27a.png" class="full-width">
+
+Value 1: Productive full and partial reduplication 	
+
+---
+<!-- header: E6: Typological Modulation Effects (34A, Occurrence of Nominal Plurality)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_34a.png" class="full-width">
+
+---
+<!-- header: E6: Typological Modulation Effects (61A, Adjectives without Nouns)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_61a.png" class="full-width">
+
+---
+<!-- header: E6: Typological Modulation Effects (64A, Nominal and Verbal Conjunction)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_64a.png" class="full-width">
+
+---
+<!-- header: E6: Typological Modulation Effects (78A, Coding of Evidentiality)-->
+<style scoped>
+  /* make *all* images on this slide 65 % wide and center them */
+  img.full-width {
+    width: 63%;
+    height: auto;
+    max-width: none;
+    display: block;        /* lets margins take effect */
+    margin-left: auto;     /* push to the middle */
+    margin-right: auto;
+  }
+</style>
+
+<img src="images/wals_78a.png" class="full-width">
