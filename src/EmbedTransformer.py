@@ -1,10 +1,7 @@
-from pathlib import Path
 from sklearn.base import BaseEstimator, TransformerMixin
-import numpy as np
 
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 from transformers import AutoModel
 
@@ -62,41 +59,10 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
         self.device = device if device is not None else _auto_device()
 
     def fit(self, X, y=None):
-        """
-        Learn something from the data if needed.
-
-        X : array-like or dataframe of shape (n_samples, n_features)
-        y : array-like of shape (n_samples,) or None
-        """
-        # This transformer doesn't learn anything from the data,
-        # so we just return self.
         return self
 
     def transform(self, X):
-        """
-        Computes token likelihoods for each cell in the DataFrame `X`.
-        For each sample (row), we:
-        1. Get an array of token likelihoods for each language (column).
-        2. Find the max token length among all languages for that sample.
-        3. Pad each likelihood array to that max length.
-        4. Combine into an array of shape (n_features, max_length_for_sample).
-
-        Parameters
-        ----------
-        X : pd.DataFrame
-            Each row corresponds to one "sample", and each column is a language's text.
-            E.g., X might have columns ["ar", "bg", "de", "en", ...].
-
-        Returns
-        -------
-        results : list of np.ndarray
-            A list of length n_samples, where each element has shape (n_features, max_len_for_that_sample).
-            - n_features = number of language columns
-            - max_len_for_that_sample = max token length among the language texts for that sample
-        """
         model = AutoModel.from_pretrained(self.model_name)
-        print(f"Using model: {model.__class__.__name__}")
-
         model.to(self.device)
         model.eval()
 
@@ -105,15 +71,11 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
             token_arrays = []
             max_len = 0
             for input_ids, attention_mask in sample:
-                # print(f"{input_ids=}")
-                # print(f"{attention_mask=}")
-                # exit()
                 last_hidden_state = get_token_embeddings(
                     model, self.model_name, input_ids, attention_mask, self.layer
                 ).cpu()
 
                 token_arrays.append(last_hidden_state)
-
                 max_len = max(max_len, last_hidden_state.shape[1])
 
             results.append(

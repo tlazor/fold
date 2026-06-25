@@ -15,9 +15,6 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        # shape: [num_langs, num_tokens, hidden_dim]
-        print(f"PsdEstimator {X[0].shape=}")
-
         # First get all frequency ranges
         all_freqs = []
         all_psds = []
