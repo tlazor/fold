@@ -10,12 +10,18 @@ from transformers import AutoModel
 
 from rich.progress import track
 
-import fold_globals
-
 from joblib import Memory
 from paths import CACHE_DIR
 
 memory = Memory(CACHE_DIR / "joblib", verbose=0)
+
+
+def _auto_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
 
 
 @memory.cache(ignore=["model"])
@@ -48,11 +54,12 @@ def get_token_embeddings(
 
 class EmbedTransformer(BaseEstimator, TransformerMixin):
     def __init__(
-        self, model_name="bert-base-multilingual-cased", mask_token_id=103, layer=12
+        self, model_name="bert-base-multilingual-cased", mask_token_id=103, layer=12, device=None
     ):
         self.model_name = model_name
         self.mask_token_id = mask_token_id
         self.layer = layer
+        self.device = device if device is not None else _auto_device()
 
     def fit(self, X, y=None):
         """
@@ -90,7 +97,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
         model = AutoModel.from_pretrained(self.model_name)
         print(f"Using model: {model.__class__.__name__}")
 
-        model.to(fold_globals.DEVICE)
+        model.to(self.device)
         model.eval()
 
         results = []

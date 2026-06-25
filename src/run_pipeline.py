@@ -35,7 +35,6 @@ from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
 from Un6Transformer import Un6Transformer
-import fold_globals
 from pipeline_options import PipelineOptions
 from analysis import analyze_output, get_langs
 from paths import CACHE_DIR, DATA_DIR
@@ -83,12 +82,12 @@ def main():
     torch._dynamo.config.capture_scalar_outputs = True
 
     if torch.cuda.is_available():
-        fold_globals.DEVICE = torch.device("cuda")
+        device = torch.device("cuda")
     elif torch.backends.mps.is_available():
-        fold_globals.DEVICE = torch.device("mps")
+        device = torch.device("mps")
     else:
-        fold_globals.DEVICE = torch.device("cpu")
-    print("Using device:", fold_globals.DEVICE)
+        device = torch.device("cpu")
+    print("Using device:", device)
 
     config = PipelineOptions.from_args()
     pipeline_memory = Memory(config.cachedir, verbose=0)
@@ -144,6 +143,7 @@ def main():
                                 mask_token_id=config.mask_token_id,
                                 layer=layer,
                                 model_name=config.model_name,
+                                device=device,
                             ),
                         )
                         cache_key = (
@@ -157,6 +157,7 @@ def main():
                             LikelihoodEstimator(
                                 model_name=config.model_name,
                                 mask_token_id=config.mask_token_id,
+                                device=device,
                             ),
                         )
                         cache_path = None
