@@ -10,4 +10,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
-    command: tail -F anything
+    command: /bin/bash
+    stdin_open: true
+    tty: true

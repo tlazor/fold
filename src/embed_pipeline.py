@@ -1,11 +1,16 @@
 from pathlib import Path
+import pickle
+import os
 
 from joblib import Memory
 from sklearn.pipeline import Pipeline
 import torch
+import numpy as np
+from transformers import AutoTokenizer
 
 from BibleTransformer import BibleTransformer
 from EmbedTransformer import EmbedTransformer
+from BandSelectTransformer import BandSelectTransformer
 from MetricTransformer import (
     MetricTransformer,
     coherence_matrix,
@@ -13,19 +18,22 @@ from MetricTransformer import (
     kl_divergence_matrix,
     mae_matrix,
 )
+from NoOpTransformer import NoOpTransformer
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
 from SampleTokens import SampleTokens
 from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
 from TsvToDataFrame import TsvToDataFrame
+from Un6Transformer import Un6Transformer
+import constants
 import fold_globals
 from pipeline import analyze_output, get_langs
-
+from pipeline_options import config
+from functools import partial
 
 if __name__ == "__main__":
-    cachedir = Path(".cache/joblib")
-    pipeline_memory = Memory(cachedir, verbose=0)
+    torch.cuda.empty_cache()
 
     torch.set_float32_matmul_precision("high")
     torch._dynamo.config.capture_scalar_outputs = True
@@ -38,30 +46,30 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    from transformers import AutoTokenizer
+    # Use shared configuration
+    pipeline_memory = Memory(config.cachedir, verbose=0)
 
-    mask_token_id = AutoTokenizer.from_pretrained(
-        "bert-base-multilingual-cased", clean_up_tokenization_spaces=True
-    ).mask_token_id
+    # print config options
+    config.print_config()
 
-    use_bible = True
-    use_spectra = True
-    straight_spectra = False
-
-    langs = get_langs(use_bible)
+    langs = get_langs(config.use_bible, config.use_un6, config.use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
-        if use_bible
+        if config.use_bible
+        else ("load_un6", Un6Transformer(Path("data/6way"), langs=langs, nrows=2000))
+        if config.use_un6
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
-        ("tokenize", TokenTransform()),
+        ("tokenize", TokenTransform(model_name=config.model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
-        ("embeddings", EmbedTransformer(mask_token_id=mask_token_id, layer=12)),
     ]
     spectra_component = [
         *(
+            # if no_spectra is True, use NoOpTransformer
+            [("noop", NoOpTransformer())]
+            if config.no_spectra
             # if is_spectra is True, we add just the SpectralTransformer
-            [("spectra", SpectralTransformer())]
-            if straight_spectra
+            else [("spectra", SpectralTransformer())]
+            if config.straight_spectra
             # otherwise, we add the two PSD-related transforms
             else [
                 ("est_psd", PsdEstimator(nperseg=56 * 2 - 1, axis=1)),
@@ -70,26 +78,76 @@ if __name__ == "__main__":
         )
     ]
 
-    metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix]
-    # metric_funs = [ coherence_matrix]
-    for fun in metric_funs:
-        metric_transformer = MetricTransformer(
-            name=fun.__name__,
-            metric_fun=fun,
-            verbose=True if fun == coherence_matrix else False,
+    cache_dir = Path("./cache/pipeline_outputs")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    f = open(
+        Path(config.get_output_filename("embedding")),
+        "w+",
+        encoding="utf-8",
+    )
+    # print config options to file
+    config.print_config(file=f)
+    for band in config.freq_bands:
+        print(f"{band=}", file=f)
+
+        coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
+        coherence_fun.__name__ = "coherence_fun"
+        # If no_spectra is True, we don't use coherence_fun since it is explicitly a spectral metric
+        metric_funs = [compute_overlaps, kl_divergence_matrix] if config.no_spectra else [compute_overlaps, kl_divergence_matrix, coherence_fun]
+
+        band_component = (
+            f"{band[0]:.3f}-{band[1]:.3f} selector",
+            BandSelectTransformer(freq_band=band),
         )
-        metric_component = (metric_transformer.name, metric_transformer)
-        pipeline = Pipeline(
-            likelihood_pipeline_components
-            + (spectra_component if use_spectra and fun != coherence_matrix else [])
-            + [metric_component],
-            memory=pipeline_memory,
-            verbose=False,
-        )
+        for fun in metric_funs:
+            metric_transformer = MetricTransformer(
+                name=fun.__name__,
+                metric_fun=fun,
+                verbose=True if fun == coherence_fun else False,
+            )
+            metric_component = (metric_transformer.name, metric_transformer)
+            print(metric_transformer.name, file=f)
 
-        # pass None because TSVToDataFrame ignores X and reads from file_path
-        output = pipeline.fit_transform(None)
+            for layer in config.layers:
+                embed_component = (
+                    "embeddings",
+                    EmbedTransformer(
+                        mask_token_id=config.mask_token_id, layer=layer, model_name=config.model_name
+                    ),
+                )
 
-        print(metric_transformer.name, output.shape)
+                # Create cache key based on configuration
+                cache_key = f"{config.prefix}_{config.short_model_name}_{band[0]:.3f}-{band[1]:.3f}_{fun.__name__}_layer{layer}.pkl"
+                cache_path = cache_dir / cache_key
 
-        analyze_output(output, langs)
+                if config.use_cache and cache_path.exists():
+                    print(f"Loading cached output from {cache_path}")
+                    with open(cache_path, "rb") as cache_file:
+                        output = pickle.load(cache_file)
+                else:
+                    pipeline = Pipeline(
+                        likelihood_pipeline_components
+                        + [embed_component]
+                        + (
+                            spectra_component
+                            if fun != coherence_fun
+                            else []
+                        )
+                        + ([band_component] if fun != coherence_fun else [])
+                        + [metric_component],
+                        memory=pipeline_memory,
+                        verbose=True,
+                    )
+
+                    # pass None because TSVToDataFrame ignores X and reads from file_path
+                    output = pipeline.fit_transform(None)
+
+                    # Cache the output
+                    print(f"Saving output to cache at {cache_path}")
+                    with open(cache_path, "wb") as cache_file:
+                        pickle.dump(output, cache_file)
+
+                print(f"{layer=}", file=f)
+                analyze_output(output, langs, f=f, model_name=config.model_name, flag_analyze_pearson_contrib=config.analyze_pearson_contrib)
+    f.close()

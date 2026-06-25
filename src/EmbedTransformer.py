@@ -20,7 +20,9 @@ memory = Memory(cachedir, verbose=0)
 
 @memory.cache(ignore=["model"])
 @torch.compile
-def get_token_embeddings(model: nn.Module, input_ids, attention_mask, layer) -> torch.Tensor:
+def get_token_embeddings(
+    model: nn.Module, model_name: str, input_ids, attention_mask, layer
+) -> torch.Tensor:
     """
     Compute the likelihood (probability) of each non-special token in `text`
     by masking each token and querying the model for its probability.
@@ -38,12 +40,16 @@ def get_token_embeddings(model: nn.Module, input_ids, attention_mask, layer) -> 
     attention_mask = torch.from_numpy(attention_mask).to(device)
 
     with torch.no_grad():
-        hidden_state = model(input_ids, attention_mask=attention_mask, output_hidden_states=True).hidden_states[layer]
+        hidden_state = model(
+            input_ids, attention_mask=attention_mask, output_hidden_states=True
+        ).hidden_states[layer]
     return hidden_state  # shape: [batch_size, seq_length, hidden_dim]
 
 
 class EmbedTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, model_name="bert-base-multilingual-cased", mask_token_id=103, layer=12):
+    def __init__(
+        self, model_name="bert-base-multilingual-cased", mask_token_id=103, layer=12
+    ):
         self.model_name = model_name
         self.mask_token_id = mask_token_id
         self.layer = layer
@@ -82,6 +88,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
             - max_len_for_that_sample = max token length among the language texts for that sample
         """
         model = AutoModel.from_pretrained(self.model_name)
+        print(f"Using model: {model.__class__.__name__}")
 
         model.to(fold_globals.DEVICE)
         model.eval()
@@ -95,7 +102,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
                 # print(f"{attention_mask=}")
                 # exit()
                 last_hidden_state = get_token_embeddings(
-                    model, input_ids, attention_mask, self.layer
+                    model, self.model_name, input_ids, attention_mask, self.layer
                 ).cpu()
 
                 token_arrays.append(last_hidden_state)

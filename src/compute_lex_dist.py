@@ -8,6 +8,7 @@ from pycldf import Dataset
 from constants import FSI_SCALE
 import langcodes
 
+
 ###############################################################################
 # 1. PARSE WORDS INTO SEGMENTS, HANDLING SPECIAL MARKERS (~, $, ")
 ###############################################################################
@@ -86,9 +87,9 @@ def custom_levenshtein_distance(w1, w2):
         for j in range(1, m + 1):
             cost = 0 if segs1[i - 1] == segs2[j - 1] else 1
             dp[i][j] = min(
-                dp[i - 1][j] + 1,       # deletion
-                dp[i][j - 1] + 1,       # insertion
-                dp[i - 1][j - 1] + cost # substitution
+                dp[i - 1][j] + 1,  # deletion
+                dp[i][j - 1] + 1,  # insertion
+                dp[i - 1][j - 1] + cost,  # substitution
             )
     return dp[n][m]
 
@@ -164,7 +165,9 @@ def compute_LDND(langA_concepts, langB_concepts):
 ###############################################################################
 def main():
     # Path to your local CLDF dataset:
-    cldf_metadata_path = "/fold/data/asjp-v20/lexibank-asjp-f0f1d0d/cldf/cldf-metadata.json"
+    cldf_metadata_path = (
+        "/fold/data/asjp-v20/lexibank-asjp-f0f1d0d/cldf/cldf-metadata.json"
+    )
     dataset = Dataset.from_metadata(cldf_metadata_path)
 
     # Build a list of 3-letter codes from FSI_SCALE plus 'en', etc.
@@ -186,12 +189,12 @@ def main():
         iso3 = lang.get("ISO639P3code")
         if not iso3:
             continue
-        
+
         # Convert iso3 -> iso2, if possible
         # langcodes.Language.get(iso3).language will typically give
         # the 2-letter code if it exists, else a fallback.
-        iso2 = langcodes.Language.get(iso3).language  
-        
+        iso2 = langcodes.Language.get(iso3).language
+
         if iso3 in langs_3letter:
             # Check if the language's name ends with _\d
             # If it does, we skip it to keep only the "first" name version
@@ -228,7 +231,9 @@ def main():
     for lang_id, concepts_dict in forms_by_lang.items():
         iso2 = language_iso2_map[lang_id]
         for concept_id, form_list in concepts_dict.items():
-            forms_by_iso2.setdefault(iso2, {}).setdefault(concept_id, []).extend(form_list)
+            forms_by_iso2.setdefault(iso2, {}).setdefault(concept_id, []).extend(
+                form_list
+            )
 
     # We'll compute distances among these iso2 groups
     iso2_groups = sorted(forms_by_iso2.keys())
@@ -239,8 +244,7 @@ def main():
     for i, iso2A in enumerate(iso2_groups):
         for iso2B in iso2_groups[i:]:
             ldnd_val = compute_LDND(
-                forms_by_iso2.get(iso2A, {}),
-                forms_by_iso2.get(iso2B, {})
+                forms_by_iso2.get(iso2A, {}), forms_by_iso2.get(iso2B, {})
             )
             distance_matrix[iso2A][iso2B] = ldnd_val
             distance_matrix[iso2B][iso2A] = ldnd_val

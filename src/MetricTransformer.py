@@ -1,6 +1,6 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
-from scipy.signal import coherence
+from rich.progress import track
 
 
 def compute_overlaps(freq_spectra):
@@ -72,33 +72,34 @@ def kl_divergence_matrix(P, epsilon=1e-15):
 
     elif len(P.shape) == 3:
         # --------------------------------------------
-        # 3D case: (num_langs, num_tokens, num_samples)
+        # 3-D case: (num_langs, num_tokens, hidden_dim)
         # --------------------------------------------
-        # Suppose P[i, t, :] represents the distribution
-        # for language i at token t across 'num_samples'.
         L, T, S = P.shape
 
-        # 1) Normalize each distribution for each language & token
-        P_norm = P / P.sum(axis=-1, keepdims=True)  # still shape (L, T, S)
+        # 1) Soft-max   — convert logits -> probabilities in a stable way
+        #    subtract max over last axis for numerical stability
+        P_shift = P - P.max(axis=-1, keepdims=True)
+        expP    = np.exp(P_shift)
+        Z       = expP.sum(axis=-1, keepdims=True)           # partition function
+        P_norm  = expP / (Z + epsilon)                       # shape (L, T, S)
 
-        # 2) Compute log(P_norm)
-        LP = np.log(P_norm + epsilon)  # shape (L, T, S)
+        # 2) log(P_norm)
+        LP = np.log(P_norm + epsilon)                        # shape (L, T, S)
 
-        # 3) alpha[i, t] = sum_x p[i, t, x] * log(p[i, t, x])
-        alpha = np.sum(P_norm * LP, axis=-1)  # shape (L, T)
+        # 3) α[i, t] = Σ_x  p[i,t,x] log p[i,t,x]
+        alpha = np.sum(P_norm * LP, axis=-1)                 # shape (L, T)
 
-        # 4) beta[i, j, t] = sum_x p[i, t, x] * log(p[j, t, x])
-        # We'll use einsum to handle pairwise i, j at each token.
-        # shape becomes (L, L, T)
-        beta = np.einsum("lts,Lts->lLt", P_norm, LP)
+        # 4) β[i, j, t] = Σ_x  p[i,t,x] log p[j,t,x]
+        #    Pair-wise across languages with einsum
+        beta = np.einsum("lts,Lts->lLt", P_norm, LP)         # shape (L, L, T)
 
-        # 5) KL[i, j, t] = alpha[i, t] - beta[i, j, t]
-        KL_per_token = alpha[:, None, :] - beta  # shape (L, L, T)
+        # 5) KL[i, j, t] = α[i,t] − β[i,j,t]
+        KL_per_token = alpha[:, None, :] - beta              # shape (L, L, T)
 
-        # Option A: Take the mean over tokens
-        KL = KL_per_token.mean(axis=-1)  # shape (L, L)
+        # Option A: mean over tokens (default)
+        KL = KL_per_token.mean(axis=-1)                      # shape (L, L)
+        # Option B: sum over tokens → use .sum(axis=-1)
 
-        # If you prefer summing over tokens, use .sum(axis=-1) instead.
         return KL
 
 
@@ -142,58 +143,89 @@ def mae_matrix(P):
     return mae
 
 
-import multiprocessing as mp
-import numpy as np
-
-
-def pairwise_coherence(args):
-    i, j, P, hidden_dim = args
-    s = np.array(0.0, dtype="float128")
-    for k in range(hidden_dim):
-        s += np.min(coherence(P[i, :, k], P[j, :, k])[1])
-    return i, j, s / hidden_dim
-
-
-def coherence_matrix_p(P):
-    num_lang, num_freq, hidden_dim = P.shape
-    overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
-
-    # Prepare argument list for each (i, j) pair in the upper triangle (i <= j)
-    # tasks = [(i, j, P, hidden_dim)
-    tasks = [(i, j, P, 1) for i in range(num_lang) for j in range(i, num_lang)]
-
-    with mp.Pool() as pool:
-        results = pool.map(pairwise_coherence, tasks)
-
-    # Fill overlap_matrix with results
-    for i, j, val in results:
-        overlap_matrix[i, j] = val
-        overlap_matrix[j, i] = val
-
-    return overlap_matrix
-
-
-from rich.progress import track
-
-
-def coherence_matrix(P, nperseg=10):
+def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
     """
-    Compute the mean absolute error for all pairs of distributions
+    Compute the coherence between all pairs of distributions
     in a 2D array P of shape (num_langs, num_samples),
     returning an array of shape (num_langs, num_langs).
+
+    Parameters
+    ----------
+    P : np.ndarray
+        Input array of shape (num_langs, num_samples) or (num_langs, num_tokens, num_samples)
+    fs : float, optional
+        Sampling frequency of the signals. Default is 1.0.
+    nperseg : int, optional
+        Length of each segment for coherence calculation. Default is None (uses scipy's default).
+    freq_band : tuple, optional
+        Frequency band to filter coherence calculation (min_freq, max_freq) as a proportion of Nyquist frequency.
+        For example, (0.4, 0.5) will only use frequencies between 40% and 50% of the Nyquist frequency.
+        Default is None (uses all frequencies).
+
+    Returns
+    -------
+    coherence_matrix : np.ndarray
+        Matrix of shape (num_langs, num_langs) containing coherence values between all pairs
     """
     if len(P.shape) == 2:
-        num_lang, num_freq = P.shape
-        overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
+        from scipy.signal import coherence
 
-        for i in range(num_lang):
-            for j in range(num_lang):
-                overlap_matrix[i, j] = np.mean(coherence(P[i], P[j])[1])
+        num_langs = P.shape[0]
+        coherence_mat = np.zeros((num_langs, num_langs))
+
+        for i in range(num_langs):
+            for j in range(num_langs):
+                # Calculate coherence between signals using cached function
+                f, Cxy = coherence(P[i], P[j], fs=fs, nperseg=nperseg)
+
+                # Filter frequency band if specified
+                if freq_band is not None:
+                    nyquist = fs / 2
+                    min_freq = freq_band[0] * nyquist
+                    max_freq = freq_band[1] * nyquist
+                    mask = (f >= min_freq) & (f <= max_freq)
+                    Cxy = Cxy[mask]
+
+                # Take mean of coherence across selected frequencies
+                coherence_mat[i, j] = np.mean(Cxy)
+
+        return coherence_mat
 
     elif len(P.shape) == 3:
-        overlap_matrix = coherence_matrix_p(P)
+        import cupy as cp
+        from cupyx.scipy.signal import coherence
 
-    return overlap_matrix
+        num_langs, num_tokens, _ = P.shape
+        coherence_mat = cp.zeros((num_langs, num_langs))
+
+        # Process language pairs in parallel where possible
+        for i in range(num_langs):
+            # Get all signals for language i
+            sigs_i = P[i]  # shape: (num_tokens, num_samples)
+
+            for j in range(num_langs):
+                # Get all signals for language j
+                sigs_j = P[j]  # shape: (num_tokens, num_samples)
+
+                # Calculate coherence for all token positions at once using cached function
+                f, Cxy = coherence(sigs_i, sigs_j, fs=fs, nperseg=nperseg)
+
+                # Filter frequency band if specified
+                if freq_band is not None:
+                    nyquist = fs / 2
+                    min_freq = freq_band[0] * nyquist
+                    max_freq = freq_band[1] * nyquist
+                    mask = (f >= min_freq) & (f <= max_freq)
+                    Cxy = Cxy[:, mask]
+
+                # Cxy shape: (num_tokens, n_freqs)
+                # Take mean across frequencies for each token
+                token_coherences = cp.mean(Cxy, axis=1)  # shape: (num_tokens,)
+
+                # Take mean across all tokens
+                coherence_mat[i, j] = cp.mean(token_coherences)
+
+        return coherence_mat.get()
 
 
 class MetricTransformer(BaseEstimator, TransformerMixin):
@@ -207,6 +239,16 @@ class MetricTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         # samples x langs x langs
-        return np.stack(
-            [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
-        )
+        # samples x langs x tokens x hidden_dim
+        if self.name == "coherence_fun" and len(X[0].shape) == 3:
+            import cupy as cp
+
+            X_gpu = [cp.asarray(x) for x in X]
+            return np.stack(
+                [self.metric_fun(x) for x in (track(X_gpu) if self.verbose else X_gpu)],
+                axis=0,
+            )
+        else:
+            return np.stack(
+                [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
+            )
