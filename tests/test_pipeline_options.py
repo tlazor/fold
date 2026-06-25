@@ -16,6 +16,9 @@ class TestDefaults:
     def test_model_default(self):
         assert PipelineOptions().model == "bert"
 
+    def test_signal_mode_default(self):
+        assert PipelineOptions().signal_mode == "likelihood"
+
     def test_spectral_mode_default(self):
         assert PipelineOptions().spectral_mode == "welch"
 
@@ -54,6 +57,10 @@ class TestValidation:
     def test_invalid_model_raises(self):
         with pytest.raises(ValueError, match="model"):
             PipelineOptions(model="gpt4")
+
+    def test_invalid_signal_mode_raises(self):
+        with pytest.raises(ValueError, match="signal_mode"):
+            PipelineOptions(signal_mode="transformer")
 
 
 # ===========================================================================
@@ -114,6 +121,14 @@ class TestOutputFilenames:
         name = cfg.get_output_filename("likelihood")
         assert name.startswith(str(tmp_path))
 
+    def test_output_filename_defaults_to_signal_mode(self):
+        cfg = PipelineOptions(signal_mode="embedding")
+        assert "embedding" in cfg.get_output_filename()
+
+    def test_output_filename_explicit_type_overrides_signal_mode(self):
+        cfg = PipelineOptions(signal_mode="embedding")
+        assert "likelihood" in cfg.get_output_filename("likelihood")
+
 
 # ===========================================================================
 # Frequency bands
@@ -147,7 +162,7 @@ class TestFreqBands:
 class TestSerialisation:
     def test_to_dict_has_required_keys(self):
         d = PipelineOptions().to_dict()
-        required = {"dataset", "model", "model_name", "spectral_mode",
+        required = {"dataset", "model", "model_name", "signal_mode", "spectral_mode",
                     "layers", "num_bands", "freq_bands", "use_cache",
                     "analyze_pearson_contrib", "output_dir"}
         assert required.issubset(d.keys())
@@ -187,6 +202,7 @@ class TestFromArgs:
         cfg = PipelineOptions.from_args()
         assert cfg.dataset == "xnli"
         assert cfg.model == "bert"
+        assert cfg.signal_mode == "likelihood"
         assert cfg.spectral_mode == "welch"
 
     def test_dataset_flag(self, monkeypatch):
@@ -198,6 +214,11 @@ class TestFromArgs:
         monkeypatch.setattr(sys, "argv", ["pipeline", "--model", "xlmr"])
         cfg = PipelineOptions.from_args()
         assert cfg.model == "xlmr"
+
+    def test_signal_mode_flag(self, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["pipeline", "--signal-mode", "embedding"])
+        cfg = PipelineOptions.from_args()
+        assert cfg.signal_mode == "embedding"
 
     def test_spectral_mode_flag(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["pipeline", "--spectral-mode", "none"])

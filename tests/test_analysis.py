@@ -2,16 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-try:
-    from pipeline import get_overlap, calculate_correlations_new
-    _PIPELINE_AVAILABLE = True
-except (ImportError, ValueError, OSError):
-    _PIPELINE_AVAILABLE = False
-
-pytestmark = pytest.mark.skipif(
-    not _PIPELINE_AVAILABLE,
-    reason="pipeline.py requires torch/CUDA libraries at import time"
-)
+from analysis import get_overlap, calculate_correlations_new
 
 
 def _make_df(langs, seed=0):
@@ -66,8 +57,9 @@ class TestGetOverlap:
         xnli = pd.DataFrame(xnli_vals, index=langs, columns=langs)
         base = pd.DataFrame(base_vals, index=langs, columns=langs)
         result = get_overlap(xnli, base, "b", symmetrical=False)
-        for lang in langs:
-            np.testing.assert_allclose(result.loc[(lang, lang), "fold"], 0.9, rtol=1e-10)
+        # select diagonal entries (where row label == col label) via boolean mask
+        diagonal = result[[idx[0] == idx[1] for idx in result.index]]["fold"]
+        np.testing.assert_allclose(diagonal.values, 0.9, rtol=1e-10)
 
 
 # ===========================================================================

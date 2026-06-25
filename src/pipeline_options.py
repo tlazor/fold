@@ -15,6 +15,7 @@ class PipelineOptions:
         self,
         dataset="xnli",
         model="bert",
+        signal_mode="likelihood",
         spectral_mode="welch",
         layers=None,
         num_bands=1,
@@ -27,12 +28,15 @@ class PipelineOptions:
         ----------
         dataset : {"xnli", "bible", "un6"}
         model : {"bert", "xlmr"}
+        signal_mode : {"likelihood", "embedding"}
+            likelihood — masked token log-probabilities (LikelihoodEstimator)
+            embedding  — hidden-layer embeddings (EmbedTransformer), loops over layers
         spectral_mode : {"welch", "fft", "none"}
             welch — Welch PSD (default)
             fft   — circular-averaged FFT power spectrum
             none  — raw token signal, no spectral transform
         layers : list of int
-            Hidden layers to extract (embedding pipeline only).
+            Hidden layers to extract (embedding mode only).
         num_bands : int
             Number of equal-width frequency sub-bands.
         use_cache : bool
@@ -42,15 +46,18 @@ class PipelineOptions:
         output_dir : str or Path
             Directory for output .txt and .json files.
         """
-        if spectral_mode not in {"welch", "fft", "none"}:
-            raise ValueError(f"spectral_mode must be 'welch', 'fft', or 'none', got {spectral_mode!r}")
         if dataset not in {"xnli", "bible", "un6"}:
             raise ValueError(f"dataset must be 'xnli', 'bible', or 'un6', got {dataset!r}")
         if model not in {"bert", "xlmr"}:
             raise ValueError(f"model must be 'bert' or 'xlmr', got {model!r}")
+        if signal_mode not in {"likelihood", "embedding"}:
+            raise ValueError(f"signal_mode must be 'likelihood' or 'embedding', got {signal_mode!r}")
+        if spectral_mode not in {"welch", "fft", "none"}:
+            raise ValueError(f"spectral_mode must be 'welch', 'fft', or 'none', got {spectral_mode!r}")
 
         self.dataset = dataset
         self.model = model
+        self.signal_mode = signal_mode
         self.spectral_mode = spectral_mode
         self.layers = layers if layers is not None else [12]
         self.num_bands = num_bands
@@ -122,6 +129,13 @@ class PipelineOptions:
             help="Plot per-pair Pearson contribution heatmaps",
         )
         parser.add_argument(
+            "--signal-mode",
+            choices=["likelihood", "embedding"],
+            default="likelihood",
+            dest="signal_mode",
+            help="Signal extraction mode: likelihood (default) or embedding",
+        )
+        parser.add_argument(
             "--output-dir",
             default=".",
             dest="output_dir",
@@ -131,6 +145,7 @@ class PipelineOptions:
         return cls(
             dataset=args.dataset,
             model=args.model,
+            signal_mode=args.signal_mode,
             spectral_mode=args.spectral_mode,
             layers=args.layers,
             num_bands=args.num_bands,
@@ -174,8 +189,9 @@ class PipelineOptions:
             self.model_name, clean_up_tokenization_spaces=True
         ).mask_token_id
 
-    def get_output_filename(self, pipeline_type="likelihood"):
-        stem = f"{self.dataset}_{self.model}_{pipeline_type}_output"
+    def get_output_filename(self, pipeline_type=None):
+        pt = pipeline_type if pipeline_type is not None else self.signal_mode
+        stem = f"{self.dataset}_{self.model}_{pt}_output"
         return str(self.output_dir / f"{stem}.txt")
 
     # ------------------------------------------------------------------
@@ -187,6 +203,7 @@ class PipelineOptions:
             "dataset": self.dataset,
             "model": self.model,
             "model_name": self.model_name,
+            "signal_mode": self.signal_mode,
             "spectral_mode": self.spectral_mode,
             "layers": self.layers,
             "num_bands": self.num_bands,
