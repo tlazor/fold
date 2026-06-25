@@ -29,7 +29,7 @@ from Un6Transformer import Un6Transformer
 import constants
 import fold_globals
 from pipeline import analyze_output, get_langs
-from pipeline_options import config
+from pipeline_options import PipelineOptions
 from functools import partial
 
 if __name__ == "__main__":
@@ -46,31 +46,27 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    # Use shared configuration
-    pipeline_memory = Memory(config.cachedir, verbose=0)
+    config = PipelineOptions.from_args()
 
-    # print config options
+    pipeline_memory = Memory(config.cachedir, verbose=0)
     config.print_config()
 
-    langs = get_langs(config.use_bible, config.use_un6, config.use_bert)
+    langs = get_langs(config.dataset, config.use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
-        if config.use_bible
+        if config.dataset == "bible"
         else ("load_un6", Un6Transformer(Path("data/6way"), langs=langs, nrows=2000))
-        if config.use_un6
+        if config.dataset == "un6"
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform(model_name=config.model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
     ]
     spectra_component = [
         *(
-            # if no_spectra is True, use NoOpTransformer
             [("noop", NoOpTransformer())]
-            if config.no_spectra
-            # if is_spectra is True, we add just the SpectralTransformer
+            if config.spectral_mode == "none"
             else [("spectra", SpectralTransformer())]
-            if config.straight_spectra
-            # otherwise, we add the two PSD-related transforms
+            if config.spectral_mode == "fft"
             else [
                 ("est_psd", PsdEstimator(nperseg=56 * 2 - 1, axis=1)),
                 ("norm_psd", PsdNormalizer(axis=1)),
@@ -81,20 +77,21 @@ if __name__ == "__main__":
     cache_dir = Path("./cache/pipeline_outputs")
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    f = open(
-        Path(config.get_output_filename("embedding")),
-        "w+",
-        encoding="utf-8",
-    )
-    # print config options to file
+    output_path = Path(config.get_output_filename("embedding"))
+    config.save(output_path.with_suffix(".json"))
+
+    f = open(output_path, "w+", encoding="utf-8")
     config.print_config(file=f)
     for band in config.freq_bands:
         print(f"{band=}", file=f)
 
         coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
         coherence_fun.__name__ = "coherence_fun"
-        # If no_spectra is True, we don't use coherence_fun since it is explicitly a spectral metric
-        metric_funs = [compute_overlaps, kl_divergence_matrix] if config.no_spectra else [compute_overlaps, kl_divergence_matrix, coherence_fun]
+        metric_funs = (
+            [compute_overlaps, kl_divergence_matrix]
+            if config.spectral_mode == "none"
+            else [compute_overlaps, kl_divergence_matrix, coherence_fun]
+        )
 
         band_component = (
             f"{band[0]:.3f}-{band[1]:.3f} selector",
@@ -117,8 +114,7 @@ if __name__ == "__main__":
                     ),
                 )
 
-                # Create cache key based on configuration
-                cache_key = f"{config.prefix}_{config.short_model_name}_{band[0]:.3f}-{band[1]:.3f}_{fun.__name__}_layer{layer}.pkl"
+                cache_key = f"{config.dataset}_{config.model}_{band[0]:.3f}-{band[1]:.3f}_{fun.__name__}_layer{layer}.pkl"
                 cache_path = cache_dir / cache_key
 
                 if config.use_cache and cache_path.exists():
@@ -129,25 +125,20 @@ if __name__ == "__main__":
                     pipeline = Pipeline(
                         likelihood_pipeline_components
                         + [embed_component]
-                        + (
-                            spectra_component
-                            if fun != coherence_fun
-                            else []
-                        )
+                        + (spectra_component if fun != coherence_fun else [])
                         + ([band_component] if fun != coherence_fun else [])
                         + [metric_component],
                         memory=pipeline_memory,
                         verbose=True,
                     )
 
-                    # pass None because TSVToDataFrame ignores X and reads from file_path
                     output = pipeline.fit_transform(None)
 
-                    # Cache the output
                     print(f"Saving output to cache at {cache_path}")
                     with open(cache_path, "wb") as cache_file:
                         pickle.dump(output, cache_file)
 
                 print(f"{layer=}", file=f)
-                analyze_output(output, langs, f=f, model_name=config.model_name, flag_analyze_pearson_contrib=config.analyze_pearson_contrib)
+                analyze_output(output, langs, f=f, model_name=config.model_name,
+                               flag_analyze_pearson_contrib=config.analyze_pearson_contrib)
     f.close()

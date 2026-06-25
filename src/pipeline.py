@@ -36,7 +36,7 @@ from Un6Transformer import Un6Transformer
 
 import fold_globals
 import constants
-from pipeline_options import config
+from pipeline_options import PipelineOptions
 
 from langcodes import Language
 
@@ -620,8 +620,8 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
     return df
 
 
-def get_langs(use_bible=False, use_un6=False, use_bert=True):
-    if use_bible:
+def get_langs(dataset="xnli", use_bert=True):
+    if dataset == "bible":
         langs = ["en"]
         for lang_2l in list(constants.FSI_SCALE.keys()):
             lang_name = (
@@ -632,10 +632,8 @@ def get_langs(use_bible=False, use_un6=False, use_bert=True):
             first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
             if first_book_lang_file.exists():
                 langs.append(lang_2l)
-            # else:
-            #     print(f"Excluding: {lang_2l}/{lang_name}")
         langs.sort()
-    elif use_un6:
+    elif dataset == "un6":
         langs = constants.UN6_LANGS
     else:
         langs = constants.XNLI_LANGUAGES
@@ -663,9 +661,7 @@ def get_langs(use_bible=False, use_un6=False, use_bert=True):
             )
             continue
 
-    # Filter out languages that are not in the model
     filtered_langs = [lang for lang in langs if lang in model_langs_2l]
-    # Get languages that were removed
     langs_removed = [lang for lang in langs if lang not in model_langs_2l]
     print(f"Langs: {len(filtered_langs)=}, {filtered_langs=}")
     print(f"Removed langs: {langs_removed}") if langs_removed else None
@@ -696,18 +692,17 @@ if __name__ == "__main__":
         fold_globals.DEVICE = torch.device("cpu")
     print("Using device:", fold_globals.DEVICE)
 
-    # Use shared configuration
-    pipeline_memory = Memory(config.cachedir, verbose=0)
+    config = PipelineOptions.from_args()
 
-    # print config options
+    pipeline_memory = Memory(config.cachedir, verbose=0)
     config.print_config()
 
-    langs = get_langs(config.use_bible, config.use_un6, config.use_bert)
+    langs = get_langs(config.dataset, config.use_bert)
     likelihood_pipeline_components = [
         ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
-        if config.use_bible
+        if config.dataset == "bible"
         else ("load_un6", Un6Transformer(Path("data/6way"), langs=langs, nrows=2000))
-        if config.use_un6
+        if config.dataset == "un6"
         else ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv"))),
         ("tokenize", TokenTransform(model_name=config.model_name)),
         ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
@@ -719,34 +714,29 @@ if __name__ == "__main__":
 
     spectra_component = [
         *(
-            # if no_spectra is True, use NoOpTransformer
             [("noop", NoOpTransformer())]
-            if config.no_spectra
-            # if is_spectra is True, we add just the SpectralTransformer
+            if config.spectral_mode == "none"
             else [("spectra", SpectralTransformer())]
-            if config.straight_spectra
-            # otherwise, we add the two PSD-related transforms
+            if config.spectral_mode == "fft"
             else [("est_psd", PsdEstimator()), ("norm_psd", PsdNormalizer())]
         )
     ]
 
-    # metric_funs = [compute_overlaps, kl_divergence_matrix, mae_matrix, coherence_fun]
-    # metric_funs = [kl_divergence_matrix]
+    output_path = Path(config.get_output_filename("likelihood"))
+    config.save(output_path.with_suffix(".json"))
 
     f = None
     try:
-        f = open(
-            Path(config.get_output_filename("likelihood")),
-            "w+",
-            encoding="utf-8",
-        )
-        # print config options to file
+        f = open(output_path, "w+", encoding="utf-8")
         config.print_config(file=f)
         for band in config.freq_bands:
             coherence_fun = partial(coherence_matrix, nperseg=10, freq_band=band)
             coherence_fun.__name__ = "coherence_fun"
-            # If no_spectra is True, we don't use coherence_fun since it is explicitly a spectral metric
-            metric_funs = [compute_overlaps, kl_divergence_matrix] if config.no_spectra else [compute_overlaps, kl_divergence_matrix, coherence_fun]
+            metric_funs = (
+                [compute_overlaps, kl_divergence_matrix]
+                if config.spectral_mode == "none"
+                else [compute_overlaps, kl_divergence_matrix, coherence_fun]
+            )
 
             print(f"{band=}", file=f)
             band_component = (
@@ -760,22 +750,18 @@ if __name__ == "__main__":
                 metric_component = (metric_transformer.name, metric_transformer)
                 pipeline = Pipeline(
                     likelihood_pipeline_components
-                    + (
-                        spectra_component
-                        if fun != coherence_fun
-                        else []
-                    )
+                    + (spectra_component if fun != coherence_fun else [])
                     + ([band_component] if fun != coherence_fun else [])
                     + [metric_component],
                     memory=pipeline_memory,
                     verbose=True,
                 )
 
-                # pass None because TSVToDataFrame ignores X and reads from file_path
                 output = pipeline.fit_transform(None)
                 print(metric_transformer.name, output.shape, file=f)
 
-                analyze_output(output, langs, f=f, model_name=config.model_name, flag_analyze_pearson_contrib=config.analyze_pearson_contrib)
+                analyze_output(output, langs, f=f, model_name=config.model_name,
+                               flag_analyze_pearson_contrib=config.analyze_pearson_contrib)
     finally:
         if f is not None:
             f.close()
