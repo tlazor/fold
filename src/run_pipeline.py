@@ -11,7 +11,6 @@ Usage:
 
 from functools import partial
 from pathlib import Path
-import pickle
 
 from joblib import Memory
 from sklearn.pipeline import Pipeline
@@ -37,7 +36,7 @@ from TsvToDataFrame import TsvToDataFrame
 from Un6Transformer import Un6Transformer
 from pipeline_options import PipelineOptions
 from analysis import analyze_output, get_langs
-from paths import CACHE_DIR, DATA_DIR
+from paths import DATA_DIR
 
 
 def _build_data_components(config, langs):
@@ -100,11 +99,6 @@ def main():
     output_path = Path(config.get_output_filename())
     config.save(output_path.with_suffix(".json"))
 
-    cache_dir = None
-    if config.signal_mode == "embedding":
-        cache_dir = CACHE_DIR / "pipeline_outputs"
-        cache_dir.mkdir(parents=True, exist_ok=True)
-
     with open(output_path, "w+", encoding="utf-8") as f:
         config.print_config(file=f)
 
@@ -146,11 +140,6 @@ def main():
                                 device=device,
                             ),
                         )
-                        cache_key = (
-                            f"{config.dataset}_{config.model}_"
-                            f"{band[0]:.3f}-{band[1]:.3f}_{fun.__name__}_layer{layer}.pkl"
-                        )
-                        cache_path = cache_dir / cache_key
                     else:
                         signal_component = (
                             "est_likelihood",
@@ -160,30 +149,17 @@ def main():
                                 device=device,
                             ),
                         )
-                        cache_path = None
 
-                    output = None
-                    if cache_path is not None and config.use_cache and cache_path.exists():
-                        print(f"Loading cached output from {cache_path}")
-                        with open(cache_path, "rb") as cache_file:
-                            output = pickle.load(cache_file)
-
-                    if output is None:
-                        pipeline = Pipeline(
-                            data_components
-                            + [signal_component]
-                            + (spectra_components if fun != coherence_fun else [])
-                            + ([band_component] if fun != coherence_fun else [])
-                            + [metric_component],
-                            memory=pipeline_memory,
-                            verbose=True,
-                        )
-                        output = pipeline.fit_transform(None)
-
-                        if cache_path is not None:
-                            print(f"Saving output to cache at {cache_path}")
-                            with open(cache_path, "wb") as cache_file:
-                                pickle.dump(output, cache_file)
+                    pipeline = Pipeline(
+                        data_components
+                        + [signal_component]
+                        + (spectra_components if fun != coherence_fun else [])
+                        + ([band_component] if fun != coherence_fun else [])
+                        + [metric_component],
+                        memory=pipeline_memory,
+                        verbose=True,
+                    )
+                    output = pipeline.fit_transform(None)
 
                     if layer is not None:
                         print(f"{layer=}", file=f)

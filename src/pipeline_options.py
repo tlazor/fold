@@ -20,7 +20,6 @@ class PipelineOptions:
         spectral_mode="welch",
         layers=None,
         num_bands=1,
-        use_cache=False,
         analyze_pearson_contrib=False,
         output_dir=".",
     ):
@@ -40,8 +39,6 @@ class PipelineOptions:
             Hidden layers to extract (embedding mode only).
         num_bands : int
             Number of equal-width frequency sub-bands.
-        use_cache : bool
-            Load cached pipeline outputs instead of recomputing.
         analyze_pearson_contrib : bool
             Plot per-pair Pearson contribution heatmaps.
         output_dir : str or Path
@@ -62,7 +59,6 @@ class PipelineOptions:
         self.spectral_mode = spectral_mode
         self.layers = layers if layers is not None else [12]
         self.num_bands = num_bands
-        self.use_cache = use_cache
         self.analyze_pearson_contrib = analyze_pearson_contrib
         self.output_dir = Path(output_dir)
 
@@ -118,12 +114,6 @@ class PipelineOptions:
             help="Number of frequency sub-bands to analyse (default: 1 = full spectrum)",
         )
         parser.add_argument(
-            "--use-cache",
-            action="store_true",
-            dest="use_cache",
-            help="Load cached pipeline outputs instead of recomputing",
-        )
-        parser.add_argument(
             "--analyze-pearson-contrib",
             action="store_true",
             dest="analyze_pearson_contrib",
@@ -150,7 +140,6 @@ class PipelineOptions:
             spectral_mode=args.spectral_mode,
             layers=args.layers,
             num_bands=args.num_bands,
-            use_cache=args.use_cache,
             analyze_pearson_contrib=args.analyze_pearson_contrib,
             output_dir=args.output_dir,
         )
@@ -209,7 +198,6 @@ class PipelineOptions:
             "layers": self.layers,
             "num_bands": self.num_bands,
             "freq_bands": [list(b) for b in self.freq_bands],
-            "use_cache": self.use_cache,
             "analyze_pearson_contrib": self.analyze_pearson_contrib,
             "output_dir": str(self.output_dir),
         }

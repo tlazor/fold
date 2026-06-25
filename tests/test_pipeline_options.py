@@ -31,9 +31,6 @@ class TestDefaults:
     def test_freq_bands_single_band(self):
         assert PipelineOptions().freq_bands == [(0, 1)]
 
-    def test_use_cache_default(self):
-        assert PipelineOptions().use_cache is False
-
     def test_analyze_pearson_contrib_default(self):
         assert PipelineOptions().analyze_pearson_contrib is False
 
@@ -163,7 +160,7 @@ class TestSerialisation:
     def test_to_dict_has_required_keys(self):
         d = PipelineOptions().to_dict()
         required = {"dataset", "model", "model_name", "signal_mode", "spectral_mode",
-                    "layers", "num_bands", "freq_bands", "use_cache",
+                    "layers", "num_bands", "freq_bands",
                     "analyze_pearson_contrib", "output_dir"}
         assert required.issubset(d.keys())
 
@@ -236,11 +233,6 @@ class TestFromArgs:
         assert cfg.num_bands == 4
         assert len(cfg.freq_bands) == 4
 
-    def test_use_cache_flag(self, monkeypatch):
-        monkeypatch.setattr(sys, "argv", ["pipeline", "--use-cache"])
-        cfg = PipelineOptions.from_args()
-        assert cfg.use_cache is True
-
     def test_analyze_pearson_contrib_flag(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["pipeline", "--analyze-pearson-contrib"])
         cfg = PipelineOptions.from_args()
@@ -257,10 +249,8 @@ class TestFromArgs:
             "--dataset", "un6",
             "--model", "xlmr",
             "--spectral-mode", "fft",
-            "--use-cache",
         ])
         cfg = PipelineOptions.from_args()
         assert cfg.dataset == "un6"
         assert cfg.model == "xlmr"
         assert cfg.spectral_mode == "fft"
-        assert cfg.use_cache is True

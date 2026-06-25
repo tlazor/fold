@@ -45,7 +45,6 @@ All pipeline behavior is controlled via CLI flags passed to `run_pipeline.py`. T
 | `--spectral-mode` | `welch`, `fft`, `none` | `welch` | Spectral transform applied before computing metrics |
 | `--layers` | integers | `12` | Hidden layers to extract (embedding mode only) |
 | `--num-bands` | integer | `1` | Number of equal-width frequency sub-bands |
-| `--use-cache` | flag | off | Load cached embedding pipeline outputs |
 | `--analyze-pearson-contrib` | flag | off | Plot per-pair Pearson contribution heatmaps |
 | `--output-dir` | path | `.` | Directory for output `.txt` and `.json` files |
 
@@ -76,8 +75,6 @@ DataLoader → TokenTransform → SampleTokens → [LikelihoodEstimator | EmbedT
 **`analyze_output()`** (in `analysis.py`) takes that stack, computes the median across samples, and correlates with FSI scale, mutual intelligibility (`constants.py`), lexical similarity, and phonetic similarity via Pearson and Spearman r. Results are printed as markdown tables.
 
 **`constants.py`** stores all static linguistic ground-truth data: language lists for BERT/XLM-R, FSI difficulty ratings, lexical/phonetic similarity matrices, mutual intelligibility tables, language family mappings, and Wikipedia corpus sizes used for bias analysis.
-
-**`fold_globals.py`** holds the global `DEVICE` (CPU/CUDA/MPS), set at pipeline startup.
 
 ## Data
 
