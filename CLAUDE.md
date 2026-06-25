@@ -8,16 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-All Python commands must be run from the `src/` directory since imports are relative (no package structure):
+All commands run from the **project root** (no `cd src/` required):
 
 ```bash
-cd src
+# Run tests
+uv run pytest
 
-# Run the likelihood-based pipeline
-uv run python pipeline.py
+# Run the unified pipeline (likelihood or embedding mode)
+uv run python src/run_pipeline.py --signal-mode likelihood --dataset xnli --model bert
+uv run python src/run_pipeline.py --signal-mode embedding --dataset bible --model xlmr --layers 6 12
 
-# Run the embedding-based pipeline
-uv run python embed_pipeline.py
+# After `uv sync`, the installed entry point is also available:
+uv run fold-pipeline --signal-mode likelihood --help
 
 # Linting
 uv run ruff check src/
@@ -27,26 +29,29 @@ uv run ruff format src/
 Docker (for GPU workloads, requires NVIDIA container runtime):
 ```bash
 docker compose run --rm fold
-# Inside container:
-cd /fold/src && uv run python pipeline.py
+# Inside container (project root is /fold):
+uv run python src/run_pipeline.py --signal-mode likelihood
 ```
 
 ## Configuration
 
-All pipeline behavior is controlled by editing `src/pipeline_options.py` — there are no CLI arguments. Key toggles in `PipelineOptions`:
+All pipeline behavior is controlled via CLI flags passed to `run_pipeline.py`. There are no longer any in-source config edits needed.
 
-| Option | Effect |
-|---|---|
-| `use_bible` / `use_un6` | Switch dataset (Bible aligned, UN 6-way, or default XNLI) |
-| `use_bert` | `True` = mBERT, `False` = XLM-R |
-| `no_spectra` | Skip spectral step; use raw token signals directly |
-| `straight_spectra` | Use FFT (circular average) instead of Welch PSD |
-| `layers` | Which transformer hidden layers to extract (embedding pipeline only) |
-| `num_bands` | Number of frequency sub-bands to analyze |
-| `analyze_pearson_contrib` | Plot per-pair Pearson contribution heatmaps |
-| `use_cache` | Load pkl cache from `cache/pipeline_outputs/` instead of recomputing |
+| Flag | Choices | Default | Effect |
+|---|---|---|---|
+| `--signal-mode` | `likelihood`, `embedding` | `likelihood` | Whether to extract masked LM probabilities or hidden-layer embeddings |
+| `--dataset` | `xnli`, `bible`, `un6` | `xnli` | Parallel corpus |
+| `--model` | `bert`, `xlmr` | `bert` | Multilingual model (mBERT or XLM-R) |
+| `--spectral-mode` | `welch`, `fft`, `none` | `welch` | Spectral transform applied before computing metrics |
+| `--layers` | integers | `12` | Hidden layers to extract (embedding mode only) |
+| `--num-bands` | integer | `1` | Number of equal-width frequency sub-bands |
+| `--use-cache` | flag | off | Load cached embedding pipeline outputs |
+| `--analyze-pearson-contrib` | flag | off | Plot per-pair Pearson contribution heatmaps |
+| `--output-dir` | path | `.` | Directory for output `.txt` and `.json` files |
 
-Output files are written to the repo root, named `{prefix}_{model}_likelihood_output.txt` / `{prefix}_{model}_embedding_output.txt`.
+A JSON snapshot of the resolved config is saved alongside every output `.txt` file automatically.
+
+Output files: `{output_dir}/{dataset}_{model}_{signal_mode}_output.txt`
 
 ## Architecture
 
@@ -68,7 +73,7 @@ DataLoader → TokenTransform → SampleTokens → [LikelihoodEstimator | EmbedT
 
 **`MetricTransformer`** applies one of `compute_overlaps`, `kl_divergence_matrix`, `mae_matrix`, or `coherence_matrix` to each sample, producing `(num_langs, num_langs)` distance matrices that are stacked into `(num_samples, num_langs, num_langs)`.
 
-**`analyze_output()`** (in `pipeline.py`) takes that stack, computes the median across samples, and correlates with FSI scale, mutual intelligibility (`constants.py`), lexical similarity, and phonetic similarity via Pearson and Spearman r. Results are printed as markdown tables.
+**`analyze_output()`** (in `analysis.py`) takes that stack, computes the median across samples, and correlates with FSI scale, mutual intelligibility (`constants.py`), lexical similarity, and phonetic similarity via Pearson and Spearman r. Results are printed as markdown tables.
 
 **`constants.py`** stores all static linguistic ground-truth data: language lists for BERT/XLM-R, FSI difficulty ratings, lexical/phonetic similarity matrices, mutual intelligibility tables, language family mappings, and Wikipedia corpus sizes used for bias analysis.
 
