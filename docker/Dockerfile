@@ -28,7 +28,7 @@ ENV PATH="/root/.local/bin/:$PATH"
 
 # Setup python env with uv
 RUN mkdir /fold
-ADD ./download_bert.py /fold
+ADD docker/download_bert.py /fold
 ADD pyproject.toml /fold
 ADD uv.lock /fold
 ADD .python-version /fold

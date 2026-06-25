@@ -28,7 +28,7 @@ uv run ruff format src/
 
 Docker (for GPU workloads, requires NVIDIA container runtime):
 ```bash
-docker compose run --rm fold
+docker compose -f docker/docker-compose.yaml run --rm fold
 # Inside container (project root is /fold):
 uv run python src/run_pipeline.py --signal-mode likelihood
 ```
