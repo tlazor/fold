@@ -13,9 +13,9 @@ from rich.progress import track
 import fold_globals
 
 from joblib import Memory
+from paths import CACHE_DIR
 
-cachedir = Path(".cache/joblib")
-memory = Memory(cachedir, verbose=0)
+memory = Memory(CACHE_DIR / "joblib", verbose=0)
 
 
 @memory.cache(ignore=["model", "chunk_size"])

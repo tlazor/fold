@@ -4,10 +4,6 @@ from TsvToDataFrame import TsvToDataFrame
 from BibleTransformer import BibleTransformer
 from Un6Transformer import Un6Transformer
 
-_BIBLE_ENGLISH = Path("data/aligned/1-b.GEN/English.txt")
-_BIBLE_DATA_AVAILABLE = _BIBLE_ENGLISH.exists()
-
-
 # ===========================================================================
 # TsvToDataFrame
 # ===========================================================================
@@ -41,17 +37,8 @@ class TestTsvToDataFrame:
 
 # ===========================================================================
 # BibleTransformer
-#
-# BibleTransformer.transform() hard-codes a CWD-relative existence check for
-# data/aligned/1-b.GEN/English.txt to decide whether to include "en".
-# Tests are skipped when that file is absent (headless CI without the corpus).
-# The actual reading uses tmp_path, which contains synthetic book data.
 # ===========================================================================
 
-@pytest.mark.skipif(
-    not _BIBLE_DATA_AVAILABLE,
-    reason="Requires data/aligned/1-b.GEN/English.txt — run from repo root with full data"
-)
 class TestBibleTransformer:
     def _make_book(self, root: Path, book_name: str, lines: list):
         d = root / book_name

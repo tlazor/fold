@@ -13,6 +13,7 @@ import warnings
 import langcodes
 from langcodes import Language
 from matplotlib.colors import TwoSlopeNorm
+from paths import DATA_DIR
 import matplotlib.transforms as mtransforms
 from scipy.stats import pearsonr, spearmanr, rankdata
 
@@ -489,7 +490,7 @@ def get_langs(dataset="xnli", use_bert=True):
                 if lang_2l != "sl"
                 else "Slovene"
             )
-            first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
+            first_book_lang_file = DATA_DIR / "aligned" / "1-b.GEN" / f"{lang_name}.txt"
             if first_book_lang_file.exists():
                 langs.append(lang_2l)
         langs.sort()

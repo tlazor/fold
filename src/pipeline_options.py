@@ -8,6 +8,7 @@ or PipelineOptions(**kwargs) for programmatic / test use.
 import argparse
 import json
 from pathlib import Path
+from paths import CACHE_DIR
 
 
 class PipelineOptions:
@@ -180,7 +181,7 @@ class PipelineOptions:
 
     @property
     def cachedir(self):
-        return Path(f".cache/joblib/tmp/{self.model}")
+        return CACHE_DIR / "joblib" / "tmp" / self.model
 
     @property
     def mask_token_id(self):

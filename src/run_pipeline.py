@@ -4,8 +4,8 @@ FOLD unified pipeline entry point.
 Replaces the separate pipeline.py / embed_pipeline.py scripts.
 
 Usage:
-    uv run python src/run_pipeline.py --signal-mode likelihood [OPTIONS]
-    uv run python src/run_pipeline.py --signal-mode embedding  [OPTIONS]
+    uv run fold-pipeline --signal-mode likelihood [OPTIONS]
+    uv run fold-pipeline --signal-mode embedding  [OPTIONS]
     uv run python src/run_pipeline.py --help
 """
 
@@ -38,15 +38,16 @@ from Un6Transformer import Un6Transformer
 import fold_globals
 from pipeline_options import PipelineOptions
 from analysis import analyze_output, get_langs
+from paths import CACHE_DIR, DATA_DIR
 
 
 def _build_data_components(config, langs):
     if config.dataset == "bible":
-        loader = ("load_bible", BibleTransformer(Path("data/aligned"), langs=langs))
+        loader = ("load_bible", BibleTransformer(DATA_DIR / "aligned", langs=langs))
     elif config.dataset == "un6":
-        loader = ("load_un6", Un6Transformer(Path("data/6way"), langs=langs, nrows=2000))
+        loader = ("load_un6", Un6Transformer(DATA_DIR / "6way", langs=langs, nrows=2000))
     else:
-        loader = ("load_tsv", TsvToDataFrame(Path("data/XNLI-15way/xnli.15way.orig.tsv")))
+        loader = ("load_tsv", TsvToDataFrame(DATA_DIR / "XNLI-15way" / "xnli.15way.orig.tsv"))
     return [
         loader,
         ("tokenize", TokenTransform(model_name=config.model_name)),
@@ -69,7 +70,7 @@ def _build_spectra_components(config):
     return [("est_psd", PsdEstimator()), ("norm_psd", PsdNormalizer())]
 
 
-if __name__ == "__main__":
+def main():
     torch.cuda.empty_cache()
 
     if torch.cuda.is_available():
@@ -102,7 +103,7 @@ if __name__ == "__main__":
 
     cache_dir = None
     if config.signal_mode == "embedding":
-        cache_dir = Path("./cache/pipeline_outputs")
+        cache_dir = CACHE_DIR / "pipeline_outputs"
         cache_dir.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w+", encoding="utf-8") as f:
@@ -190,3 +191,7 @@ if __name__ == "__main__":
                         model_name=config.model_name,
                         flag_analyze_pearson_contrib=config.analyze_pearson_contrib,
                     )
+
+
+if __name__ == "__main__":
+    main()
