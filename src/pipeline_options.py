@@ -59,6 +59,8 @@ class PipelineOptions:
         self.signal_mode = signal_mode
         self.spectral_mode = spectral_mode
         self.layers = layers if layers is not None else [12]
+        if not self.layers:
+            raise ValueError("layers must be non-empty")
         self.num_bands = num_bands
         self.analyze_pearson_contrib = analyze_pearson_contrib
         self.output_dir = Path(output_dir)
