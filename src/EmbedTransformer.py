@@ -37,7 +37,7 @@ def get_token_embeddings(
         hidden_state = model(
             input_ids, attention_mask=attention_mask, output_hidden_states=True
         ).hidden_states[layer]
-    return hidden_state  # shape: [batch_size, seq_length, hidden_dim]
+    return hidden_state.cpu()  # shape: [batch_size, seq_length, hidden_dim]
 
 
 class EmbedTransformer(BaseEstimator, TransformerMixin):
@@ -64,7 +64,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
             for input_ids, attention_mask in sample:
                 last_hidden_state = get_token_embeddings(
                     model, self.model_name, input_ids, attention_mask, self.layer
-                ).cpu()
+                )
 
                 token_arrays.append(last_hidden_state)
                 max_len = max(max_len, last_hidden_state.shape[1])
