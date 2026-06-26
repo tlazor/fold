@@ -141,7 +141,7 @@ def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_
     en_index = langs.index("en")
 
     xnli_df = pd.DataFrame(
-        np.median(output, axis=0),
+        np.nanmedian(output, axis=0),
         index=langs,
         columns=langs,
     )
