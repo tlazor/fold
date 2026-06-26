@@ -66,16 +66,27 @@ def get_sample_likelihoods(
     mega_ids = torch.cat(mega_ids_parts, dim=0)    # (total_tokens, seq_len)
     mega_masks = torch.cat(mega_mask_parts, dim=0)  # (total_tokens, seq_len)
 
-    # Forward pass in chunks across the full mega-batch
+    # Forward pass in chunks across the full mega-batch.
+    # Do NOT call torch.cuda.empty_cache() inside this loop — it forces a
+    # CPU-GPU sync barrier on every iteration and stalls the GPU pipeline.
+    # The caching allocator reuses freed memory automatically; only call
+    # empty_cache() as a last resort when an OOM error actually occurs.
     total_rows = mega_ids.shape[0]
     logit_chunks = []
     with torch.no_grad():
         for start in range(0, total_rows, chunk_size):
             end = min(start + chunk_size, total_rows)
-            logits = model(
-                mega_ids[start:end].to(device),
-                attention_mask=mega_masks[start:end].to(device),
-            ).logits
+            try:
+                logits = model(
+                    mega_ids[start:end].to(device),
+                    attention_mask=mega_masks[start:end].to(device),
+                ).logits
+            except torch.cuda.OutOfMemoryError:
+                torch.cuda.empty_cache()
+                logits = model(
+                    mega_ids[start:end].to(device),
+                    attention_mask=mega_masks[start:end].to(device),
+                ).logits
             logit_chunks.append(logits.cpu().float())
 
     all_logits = torch.cat(logit_chunks, dim=0)  # (total_rows, seq_len, vocab_size)
