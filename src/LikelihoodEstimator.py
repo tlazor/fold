@@ -1,5 +1,6 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -15,111 +16,81 @@ memory = Memory(CACHE_DIR / "joblib", verbose=0)
 
 
 @memory.cache(ignore=["model", "chunk_size"])
-def get_token_likelihood_vec(
+def get_sample_likelihoods(
     model: nn.Module,
     model_name: str,
-    token_ids,
-    attention_mask,
-    mask_token_id,
+    all_token_ids,
+    all_attention_masks,
+    mask_token_id: int,
     chunk_size: int = 32,
 ) -> list:
     """
-    Compute the likelihood (probability) of each non-special token in `text`
-    by masking each token and querying the model for its probability.
+    Compute per-token likelihoods for all languages in one sample via a single
+    batched forward-pass sequence.
 
-    Uses a chunked approach so it fits in ~8GB GPU memory more easily.
+    all_token_ids     : numpy array (n_langs, seq_len)
+    all_attention_masks: numpy array (n_langs, seq_len)
 
-    Args:
-        model: HuggingFace-like model (e.g. BERT)
-        tokenizer: Corresponding tokenizer
-        text: Input text (single string)
-        chunk_size: How many masked positions to handle per forward pass
-
-    Returns:
-        A list of probabilities (floats in [0,1]) for each non-special token.
+    Returns a list of n_langs 1-D tensors, each holding the probability of
+    every non-special token in that language's sentence.
     """
     device = model.device
+    n_langs = all_token_ids.shape[0]
 
-    # joblib cant currently deterministically hash tensors (they contain metadata about storage)
-    token_ids = torch.from_numpy(token_ids)
-    attention_mask = torch.from_numpy(attention_mask)
+    ids_t = torch.from_numpy(all_token_ids)    # (n_langs, seq_len)
+    masks_t = torch.from_numpy(all_attention_masks)  # (n_langs, seq_len)
 
-    # 2) Determine how many real tokens (excluding special tokens) to consider
-    #    For many BERT-like models, there's 1 CLS token (index 0) and 1 SEP token at the end.
-    #    Adjust according to your special-token scheme if needed.
-    valid_token_count = attention_mask[0].sum().item()  # number of non-pad
-    num_normal_tokens = valid_token_count - 2  # skip [CLS] & [SEP]
+    num_normal = masks_t.sum(dim=1).long() - 2  # exclude [CLS] and [SEP]
 
-    # 3) Create repeated copies of the input with one token masked each time.
-    #    We'll do this on **CPU** to avoid excessive GPU usage.
-    #    Shape: (num_normal_tokens, max_tokens)
-    masked_input_ids_cpu = token_ids.repeat(num_normal_tokens, 1)
-    masked_attention_cpu = attention_mask.repeat(num_normal_tokens, 1)
+    # Build a mega-batch: for language l with N_l normal tokens we need N_l masked copies.
+    mega_ids_parts = []
+    mega_mask_parts = []
+    lang_offsets: list[tuple[int, int]] = []
+    offset = 0
 
-    # Mask the positions [1..num_normal_tokens] (skip the CLS token at index 0)
-    for i in range(num_normal_tokens):
-        position_to_mask = i + 1
-        masked_input_ids_cpu[i, position_to_mask] = mask_token_id
+    for l in range(n_langs):
+        n_t = int(num_normal[l].item())
+        lang_offsets.append((offset, n_t))
+        offset += n_t
 
-    # We'll need the original token IDs for indexing probabilities:
-    original_token_ids = token_ids[
-        0, 1 : num_normal_tokens + 1
-    ]  # shape: (num_normal_tokens,)
+        repeated_ids = ids_t[l].unsqueeze(0).repeat(n_t, 1)    # (n_t, seq_len)
+        repeated_mask = masks_t[l].unsqueeze(0).repeat(n_t, 1)  # (n_t, seq_len)
 
-    # 4) Forward pass in chunks
-    all_likelihoods = []
+        # Row i masks position i+1 (skip [CLS] at 0)
+        row_idx = torch.arange(n_t)
+        repeated_ids[row_idx, row_idx + 1] = mask_token_id
+
+        mega_ids_parts.append(repeated_ids)
+        mega_mask_parts.append(repeated_mask)
+
+    mega_ids = torch.cat(mega_ids_parts, dim=0)    # (total_tokens, seq_len)
+    mega_masks = torch.cat(mega_mask_parts, dim=0)  # (total_tokens, seq_len)
+
+    # Forward pass in chunks across the full mega-batch
+    total_rows = mega_ids.shape[0]
+    logit_chunks = []
     with torch.no_grad():
-        for start in range(0, num_normal_tokens, chunk_size):
-            end = min(start + chunk_size, num_normal_tokens)
-
-            # Slice out this chunk (still on CPU); then move to GPU
-            masked_ids_chunk = masked_input_ids_cpu[start:end].to(device)
-            attention_chunk = masked_attention_cpu[start:end].to(device)
-
-            # Model forward
-            logits_chunk = model(
-                masked_ids_chunk, attention_mask=attention_chunk
+        for start in range(0, total_rows, chunk_size):
+            end = min(start + chunk_size, total_rows)
+            logits = model(
+                mega_ids[start:end].to(device),
+                attention_mask=mega_masks[start:end].to(device),
             ).logits
-            # shape: (chunk_size, max_tokens, vocab_size)
+            logit_chunks.append(logits.cpu().float())
 
-            # The position masked in sample `i` (global index) is (i+1).
-            # For chunked indexing:
-            #   - global_i in [start..end-1]
-            #   - local_i in [0..(end-start)-1]
-            #   - col_idx = global_i + 1
-            local_range = torch.arange(start, end, device=device)
-            col_indices = local_range + 1  # the masked positions for the chunk
-            local_i = local_range - start  # local row indices
+    all_logits = torch.cat(logit_chunks, dim=0)  # (total_rows, seq_len, vocab_size)
 
-            # Extract the logits for the masked position
-            # shape: (chunk_size, vocab_size)
-            selected_logits_chunk = logits_chunk[local_i, col_indices, :]
+    results = []
+    for l, (start_row, n_t) in enumerate(lang_offsets):
+        lang_logits = all_logits[start_row : start_row + n_t]  # (n_t, seq_len, vocab_size)
+        row_idx = torch.arange(n_t)
+        selected = lang_logits[row_idx, row_idx + 1, :]  # (n_t, vocab_size)
+        log_probs = F.log_softmax(selected, dim=-1)
+        original_ids = ids_t[l, 1 : n_t + 1]
+        probs = log_probs[row_idx, original_ids].exp()
+        results.append(probs)
 
-            # Convert to log_probs (then we can exponentiate if we want probabilities)
-            selected_log_probs_chunk = F.log_softmax(selected_logits_chunk, dim=-1)
-
-            # Gather the original token ID
-            # original_token_ids is on CPU, so move it or index directly
-            chunk_original_ids = original_token_ids[start:end].to(device)
-
-            # The log-prob for the correct token:
-            # shape: (end - start)
-            chunk_log_probs = selected_log_probs_chunk[
-                torch.arange(end - start, device=device), chunk_original_ids
-            ]
-
-            # Convert to probabilities and move to CPU immediately
-            chunk_probs = chunk_log_probs.exp().cpu()
-            all_likelihoods.append(chunk_probs)
-
-            # Clear GPU cache after each chunk
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-    # 5) Concatenate all chunk results
-    all_likelihoods = torch.cat(all_likelihoods, dim=0)  # shape: (num_normal_tokens,)
-
-    return all_likelihoods
+    return results
 
 
 class LikelihoodEstimator(BaseEstimator, TransformerMixin):
@@ -143,26 +114,22 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
 
         results = []
         for sample in track(X):
-            token_arrays = []
-            max_len = 0
-            for input_ids, attention_mask in sample:
-                token_likelihoods = get_token_likelihood_vec(
-                    model,
-                    self.model_name,
-                    input_ids,
-                    attention_mask,
-                    self.mask_token_id,
-                )
-                token_arrays.append(token_likelihoods)
+            # Stack all language token arrays into (n_langs, seq_len) for batched inference.
+            all_ids = np.vstack([ids for ids, _ in sample])      # (n_langs, seq_len)
+            all_masks = np.vstack([mask for _, mask in sample])  # (n_langs, seq_len)
 
-                max_len = max(max_len, token_likelihoods.shape[0])
+            token_arrays = get_sample_likelihoods(
+                model,
+                self.model_name,
+                all_ids,
+                all_masks,
+                self.mask_token_id,
+            )
 
+            max_len = max(t.shape[0] for t in token_arrays)
             results.append(
                 torch.vstack(
-                    [
-                        torch.nn.functional.pad(t, (0, max_len - t.shape[0]))
-                        for t in token_arrays
-                    ]
+                    [F.pad(t, (0, max_len - t.shape[0])) for t in token_arrays]
                 ).numpy()
             )
 
