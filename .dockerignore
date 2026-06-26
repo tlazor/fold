@@ -1,0 +1,7 @@
+.venv/
+.cache/
+__pycache__/
+.git/
+notes/
+plots/
+significant_output/
