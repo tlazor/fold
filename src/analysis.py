@@ -104,7 +104,7 @@ def get_full_mut_int():
             constants.ROMANCE_INTELLIGABILITY.index
         )
         .union(constants.SLAVIC_INTELLIGABILITY.index)
-        .drop(["Mean", "Total"])
+        .drop(["Mean", "Total"], errors="ignore")
     )
 
     df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(
