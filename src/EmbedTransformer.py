@@ -22,7 +22,6 @@ def _auto_device() -> torch.device:
 
 
 @memory.cache(ignore=["model"])
-@torch.compile
 def get_token_embeddings(
     model: nn.Module, model_name: str, input_ids, attention_mask, layer
 ) -> torch.Tensor:

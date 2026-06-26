@@ -23,7 +23,6 @@ def _auto_device() -> torch.device:
 
 
 @memory.cache(ignore=["model", "chunk_size"])
-@torch.compile
 def get_token_likelihood_vec(
     model: nn.Module,
     model_name: str,
