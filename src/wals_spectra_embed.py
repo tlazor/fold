@@ -90,8 +90,6 @@ def main():
     if not plot_dir.exists():
         plot_dir.mkdir(parents=True)
 
-    mask_token_id = config.mask_token_id
-
     # Specify WALS feature to analyze
     wals_features = [
         "17A",
@@ -119,7 +117,7 @@ def main():
             ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
             (
                 "embeddings",
-                EmbedTransformer(mask_token_id=mask_token_id, layer=config.layers[0]),
+                EmbedTransformer(model_name=config.model_name, layer=config.layers[0]),
             ),  # Using first layer from config
             ("est_psd", PsdEstimator(nperseg=56 * 2 - 1, axis=1)),
             ("norm_psd", PsdNormalizer(axis=1)),
