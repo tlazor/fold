@@ -59,6 +59,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
             dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
             model = model.to(dtype)
         model.eval()
+        model = torch.compile(model)
 
         results = []
         for sample in track(X):
