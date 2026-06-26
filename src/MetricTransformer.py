@@ -3,6 +3,43 @@ import numpy as np
 from joblib import Parallel, delayed
 from rich.progress import track
 
+try:
+    import numba
+
+    @numba.njit(parallel=True, cache=True)
+    def _overlap_3d_nb(freq_spectra):
+        """Pairwise min-sum overlap for (L, F, D) spectra without a large (L,L,F,D) temporary."""
+        L, F, D = freq_spectra.shape
+        result = np.zeros((L, L), dtype=np.float64)
+        for i in numba.prange(L):
+            for j in range(L):
+                total = 0.0
+                for f in range(F):
+                    for d in range(D):
+                        a = freq_spectra[i, f, d]
+                        b = freq_spectra[j, f, d]
+                        total += a if a < b else b
+                result[i, j] = total / D
+        return result
+
+    @numba.njit(parallel=True, cache=True)
+    def _kl_beta_3d_nb(P_norm, LP):
+        """β[l, L, t] = Σ_s P_norm[l,t,s] * LP[L,t,s] — parallel over the l axis."""
+        L, T, S = P_norm.shape
+        beta = np.zeros((L, L, T), dtype=np.float64)
+        for l in numba.prange(L):
+            for ll in range(L):
+                for t in range(T):
+                    acc = 0.0
+                    for s in range(S):
+                        acc += P_norm[l, t, s] * LP[ll, t, s]
+                    beta[l, ll, t] = acc
+        return beta
+
+    _NUMBA_AVAILABLE = True
+except ImportError:
+    _NUMBA_AVAILABLE = False
+
 
 def compute_overlaps(freq_spectra):
     """
@@ -29,12 +66,15 @@ def compute_overlaps(freq_spectra):
         overlap_matrix = pairwise_mins.sum(axis=-1)
     elif len(freq_spectra.shape) == 3:
         # overlap(i,j) = mean_d( sum_f min(s[i,f,d], s[j,f,d]) )
-        # Broadcast to (L, L, num_freq, embed_dim), take elem-wise min, sum over freq, mean over dim.
-        pairwise_mins = np.minimum(
-            freq_spectra[:, np.newaxis, :, :],  # (L, 1, F, D)
-            freq_spectra[np.newaxis, :, :, :],  # (1, L, F, D)
-        )  # → (L, L, F, D)
-        overlap_matrix = pairwise_mins.sum(axis=2).mean(axis=2)  # (L, L)
+        if _NUMBA_AVAILABLE:
+            # Avoids allocating the large (L, L, F, D) intermediate array.
+            overlap_matrix = _overlap_3d_nb(np.ascontiguousarray(freq_spectra, dtype=np.float64))
+        else:
+            pairwise_mins = np.minimum(
+                freq_spectra[:, np.newaxis, :, :],
+                freq_spectra[np.newaxis, :, :, :],
+            )
+            overlap_matrix = pairwise_mins.sum(axis=2).mean(axis=2)
 
     return overlap_matrix
 
@@ -85,8 +125,13 @@ def kl_divergence_matrix(P, epsilon=1e-15):
         alpha = np.sum(P_norm * LP, axis=-1)                 # shape (L, T)
 
         # 4) β[i, j, t] = Σ_x  p[i,t,x] log p[j,t,x]
-        #    Pair-wise across languages with einsum
-        beta = np.einsum("lts,Lts->lLt", P_norm, LP)         # shape (L, L, T)
+        if _NUMBA_AVAILABLE:
+            beta = _kl_beta_3d_nb(
+                np.ascontiguousarray(P_norm, dtype=np.float64),
+                np.ascontiguousarray(LP, dtype=np.float64),
+            )
+        else:
+            beta = np.einsum("lts,Lts->lLt", P_norm, LP)  # shape (L, L, T)
 
         # 5) KL[i, j, t] = α[i,t] − β[i,j,t]
         KL_per_token = alpha[:, None, :] - beta              # shape (L, L, T)
