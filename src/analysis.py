@@ -363,7 +363,7 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
         plt.close()
 
     # English-only analysis
-    size_df = pd.DataFrame()
+    en_rows = []
     for lang1 in matrix.index:
         for lang2 in matrix.columns:
             if lang1 == lang2 or (lang1 != "en" and lang2 != "en"):
@@ -378,23 +378,14 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
             else:
                 raise ValueError(f"Model {model_name} not supported")
 
-            min_size = min(lang1_size, lang2_size)
-            pearson_contrib = matrix.loc[lang1, lang2]
+            en_rows.append({
+                "lang1_size": lang1_size,
+                "lang2_size": lang2_size,
+                "pearson_contrib": matrix.loc[lang1, lang2],
+                "min_size": min(lang1_size, lang2_size),
+            })
 
-            size_df = pd.concat(
-                [
-                    size_df,
-                    pd.DataFrame(
-                        {
-                            "lang1_size": lang1_size,
-                            "lang2_size": lang2_size,
-                            "pearson_contrib": pearson_contrib,
-                            "min_size": min_size,
-                        },
-                        index=[index],
-                    ),
-                ]
-            )
+    size_df = pd.DataFrame(en_rows, index=[index] * len(en_rows))
 
     pearson_and_spearman_df = calculate_coef_and_pval(size_df, cols=["min_size"])
     print(
