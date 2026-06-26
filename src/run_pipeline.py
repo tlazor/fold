@@ -97,6 +97,7 @@ def main():
     spectra_components = _build_spectra_components(config)
 
     output_path = Path(config.get_output_filename())
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     config.save(output_path.with_suffix(".json"))
 
     with open(output_path, "w+", encoding="utf-8") as f:
