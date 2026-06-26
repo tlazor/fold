@@ -238,7 +238,10 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
     matrix = matrix.loc[ordered_rows, ordered_cols]
 
     vmin, vmax = np.nanmin(matrix.values), np.nanmax(matrix.values)
-    norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    if vmin < 0 < vmax:
+        norm = TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    else:
+        norm = plt.Normalize(vmin=vmin, vmax=vmax)
 
     rows = len(ordered_rows)
     fig_height = np.clip(rows * 0.40 + 1.5, 2, 12)
