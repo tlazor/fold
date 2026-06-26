@@ -320,20 +320,25 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
 
 
 def analyze_wikisize(matrix, metric_name, index, model_name):
+    if model_name == "bert-base-multilingual-cased":
+        size_map = constants.language_wikisize
+    elif model_name == "FacebookAI/xlm-roberta-base":
+        size_map = constants.XLMR_SIZE_LOG
+    else:
+        raise ValueError(f"Model {model_name} not supported")
+
     rows = []
     for lang1 in matrix.index:
         for lang2 in matrix.columns:
             if lang1 == lang2:
                 continue
 
-            if model_name == "bert-base-multilingual-cased":
-                lang1_size = constants.language_wikisize[lang1]
-                lang2_size = constants.language_wikisize[lang2]
-            elif model_name == "FacebookAI/xlm-roberta-base":
-                lang1_size = constants.XLMR_SIZE_LOG[lang1]
-                lang2_size = constants.XLMR_SIZE_LOG[lang2]
-            else:
-                raise ValueError(f"Model {model_name} not supported")
+            if lang1 not in size_map or lang2 not in size_map:
+                print(f"Skipping ({lang1}, {lang2}): not in wikisize table")
+                continue
+
+            lang1_size = size_map[lang1]
+            lang2_size = size_map[lang2]
 
             rows.append({
                 "lang1_size": lang1_size,
@@ -369,14 +374,12 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
             if lang1 == lang2 or (lang1 != "en" and lang2 != "en"):
                 continue
 
-            if model_name == "bert-base-multilingual-cased":
-                lang1_size = constants.language_wikisize[lang1]
-                lang2_size = constants.language_wikisize[lang2]
-            elif model_name == "FacebookAI/xlm-roberta-base":
-                lang1_size = constants.XLMR_SIZE_LOG[lang1]
-                lang2_size = constants.XLMR_SIZE_LOG[lang2]
-            else:
-                raise ValueError(f"Model {model_name} not supported")
+            if lang1 not in size_map or lang2 not in size_map:
+                print(f"Skipping ({lang1}, {lang2}): not in wikisize table")
+                continue
+
+            lang1_size = size_map[lang1]
+            lang2_size = size_map[lang2]
 
             en_rows.append({
                 "lang1_size": lang1_size,
