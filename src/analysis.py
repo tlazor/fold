@@ -438,11 +438,13 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
 
     intersection = sorted(set(labels_a).intersection(set(labels_b)))
 
-    upper_triangle_mask = np.triu(np.ones(baseline.shape), k=0).astype(bool)
-    baseline_df = baseline.where(upper_triangle_mask) if symmetrical else baseline
-
     df_a_sub = xnli_df.loc[intersection, intersection]
-    df_b_sub = baseline_df.loc[intersection, intersection]
+    df_b_sub = baseline.loc[intersection, intersection]
+
+    if symmetrical:
+        n = len(intersection)
+        mask = np.triu(np.ones((n, n), dtype=bool), k=0)
+        df_b_sub = df_b_sub.where(mask)
 
     series_a_sub = df_a_sub.values.flatten()
     row_labels = df_a_sub.index
