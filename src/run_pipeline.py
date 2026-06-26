@@ -36,7 +36,7 @@ from TsvToDataFrame import TsvToDataFrame
 from Un6Transformer import Un6Transformer
 from pipeline_options import PipelineOptions
 from analysis import analyze_output, get_langs
-from paths import DATA_DIR
+from paths import DATA_DIR, auto_device
 
 
 def _build_data_components(config, langs):
@@ -80,12 +80,7 @@ def main():
     torch.set_float32_matmul_precision("high")
     torch._dynamo.config.capture_scalar_outputs = True
 
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    device = auto_device()
     print("Using device:", device)
 
     config = PipelineOptions.from_args()

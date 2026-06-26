@@ -9,17 +9,9 @@ from transformers import AutoModelForMaskedLM
 from rich.progress import track
 
 from joblib import Memory
-from paths import CACHE_DIR
+from paths import CACHE_DIR, auto_device
 
 memory = Memory(CACHE_DIR / "joblib", verbose=0)
-
-
-def _auto_device() -> torch.device:
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
 
 
 @memory.cache(ignore=["model", "chunk_size"])
@@ -140,7 +132,7 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        device = self.device if self.device is not None else _auto_device()
+        device = self.device if self.device is not None else auto_device()
         model = AutoModelForMaskedLM.from_pretrained(self.model_name)
 
         model.to(device)
