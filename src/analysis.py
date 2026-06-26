@@ -141,15 +141,12 @@ def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_
         )
     en_index = langs.index("en")
 
-    xnli_df = pd.DataFrame(
-        np.nanmedian(output, axis=0),
-        index=langs,
-        columns=langs,
-    )
+    median_matrix = np.nanmedian(output, axis=0)
+    xnli_df = pd.DataFrame(median_matrix, index=langs, columns=langs)
     for i in range(len(langs)):
         xnli_df.iloc[i, i] = np.nan
 
-    en_source_distances = np.nanmedian(output, axis=0)[en_index]
+    en_source_distances = median_matrix[en_index]
     df_fsi = pd.DataFrame(columns=["lang", "fsi", "fold"])
 
     for lang, fold_distance in zip(langs, en_source_distances):
