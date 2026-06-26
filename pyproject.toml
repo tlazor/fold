@@ -33,7 +33,6 @@ dependencies = [
     "torch>=2.6.0",
     "transformers>=4.49.0",
     "triton>=3.2.0",
-    "pytest>=8.0.0",
 ]
 
 [tool.uv.sources]
@@ -42,6 +41,9 @@ torch = { index = "pytorch" }
 [[tool.uv.index]]
 name = "pytorch"
 url = "https://download.pytorch.org/whl/cu126"
+
+[dependency-groups]
+dev = ["pytest>=8.0.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
