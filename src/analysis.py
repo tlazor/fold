@@ -6,7 +6,6 @@ imported in tests and notebooks without a GPU.
 """
 
 from datetime import datetime
-from itertools import combinations
 from pathlib import Path
 import warnings
 
@@ -14,7 +13,7 @@ import langcodes
 from matplotlib.colors import TwoSlopeNorm
 from paths import DATA_DIR
 import matplotlib.transforms as mtransforms
-from scipy.stats import pearsonr, spearmanr, rankdata
+from scipy.stats import pearsonr, spearmanr, kendalltau
 
 import numpy as np
 import pandas as pd
@@ -70,15 +69,11 @@ def calculate_correlations_new(dataframes):
 
                 s_coef, s_pval = spearmanr(x, y)
 
-                rx = rankdata(x)
-                ry = rankdata(y)
-                num_concordant = 0
-                num_discordant = 0
-                for a, b in combinations(range(len(rx)), 2):
-                    concordant = (rx[a] - rx[b]) * (ry[a] - ry[b]) > 0
-                    discordant = (rx[a] - rx[b]) * (ry[a] - ry[b]) < 0
-                    num_concordant += concordant
-                    num_discordant += discordant
+                # Use scipy's O(n log n) merge-sort Kendall τ instead of the
+                # previous O(n²) manual concordant/discordant pair loop.
+                kt = kendalltau(x, y)
+                num_concordant = int(round((1 + kt.statistic) / 2 * (len(x) * (len(x) - 1) / 2)))
+                num_discordant = int(len(x) * (len(x) - 1) / 2) - num_concordant
 
                 all_correlations.append(
                     {
