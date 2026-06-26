@@ -135,6 +135,10 @@ formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
 
 
 def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False):
+    if "en" not in langs:
+        raise ValueError(
+            f"English ('en') must be present in langs for FSI correlation; got {langs}"
+        )
     en_index = langs.index("en")
 
     xnli_df = pd.DataFrame(
