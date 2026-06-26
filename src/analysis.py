@@ -199,10 +199,7 @@ def analyze_pearson_contrib(results_long, model_name):
         else:
             langs = sorted(metric_pearson_contrib.index)
             en_row = pd.DataFrame(np.nan, index=langs, columns=langs)
-            en_col = pd.DataFrame(np.nan, index=langs, columns=langs)
-            print(f"{metric_pearson_contrib.index=}")
             en_row.loc["en"] = metric_pearson_contrib[langs]
-            print(f"{en_row=}")
 
             plot_pearson_contrib(en_row, f"{metric_name}_en_row", results_long, index)
             analyze_wikisize(en_row, f"{metric_name}_en_row", index, model_name)
