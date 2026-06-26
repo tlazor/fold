@@ -34,6 +34,11 @@ ADD uv.lock /fold
 ADD .python-version /fold
 
 WORKDIR /fold
+# Install dependencies only; skip building the local package so this
+# layer is cached even when source files (including README.md) haven't
+# been added yet.  The project itself is built on first `uv run` after
+# ADD . /fold below.
+RUN uv sync --no-install-project
 # cache download of bert
 RUN uv run --no-project download_bert.py
 

@@ -15,6 +15,7 @@ fold-pipeline = "fold._cli:main"
 name = "fold"
 version = "0.1.0"
 description = "Add your description here"
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "cupy-cuda12x>=13.4.1",
