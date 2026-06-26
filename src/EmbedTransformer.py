@@ -50,10 +50,9 @@ def get_token_embeddings(
 
 class EmbedTransformer(BaseEstimator, TransformerMixin):
     def __init__(
-        self, model_name="bert-base-multilingual-cased", mask_token_id=103, layer=12, device=None
+        self, model_name="bert-base-multilingual-cased", layer=12, device=None
     ):
         self.model_name = model_name
-        self.mask_token_id = mask_token_id
         self.layer = layer
         self.device = device
 

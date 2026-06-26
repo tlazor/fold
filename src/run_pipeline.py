@@ -135,7 +135,6 @@ def main():
                         signal_component = (
                             "embeddings",
                             EmbedTransformer(
-                                mask_token_id=config.mask_token_id,
                                 layer=layer,
                                 model_name=config.model_name,
                                 device=device,
