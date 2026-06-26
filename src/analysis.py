@@ -11,7 +11,6 @@ from pathlib import Path
 import warnings
 
 import langcodes
-from langcodes import Language
 from matplotlib.colors import TwoSlopeNorm
 from paths import DATA_DIR
 import matplotlib.transforms as mtransforms
@@ -136,8 +135,6 @@ formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
 
 
 def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False):
-    readable_names = [Language.make(language=lang).display_name() for lang in langs]
-
     en_index = langs.index("en")
 
     xnli_df = pd.DataFrame(
