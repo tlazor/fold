@@ -320,7 +320,7 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
 
 
 def analyze_wikisize(matrix, metric_name, index, model_name):
-    size_df = pd.DataFrame()
+    rows = []
     for lang1 in matrix.index:
         for lang2 in matrix.columns:
             if lang1 == lang2:
@@ -335,29 +335,17 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
             else:
                 raise ValueError(f"Model {model_name} not supported")
 
-            min_size = min(lang1_size, lang2_size)
-            max_size = max(lang1_size, lang2_size)
-            mean_size = (lang1_size + lang2_size) / 2
-            diff_size = abs(lang1_size - lang2_size)
-            pearson_contrib = matrix.loc[lang1, lang2]
+            rows.append({
+                "lang1_size": lang1_size,
+                "lang2_size": lang2_size,
+                "pearson_contrib": matrix.loc[lang1, lang2],
+                "min_size": min(lang1_size, lang2_size),
+                "max_size": max(lang1_size, lang2_size),
+                "mean_size": (lang1_size + lang2_size) / 2,
+                "diff_size": abs(lang1_size - lang2_size),
+            })
 
-            size_df = pd.concat(
-                [
-                    size_df,
-                    pd.DataFrame(
-                        {
-                            "lang1_size": lang1_size,
-                            "lang2_size": lang2_size,
-                            "pearson_contrib": pearson_contrib,
-                            "min_size": min_size,
-                            "max_size": max_size,
-                            "mean_size": mean_size,
-                            "diff_size": diff_size,
-                        },
-                        index=[index],
-                    ),
-                ]
-            )
+    size_df = pd.DataFrame(rows, index=[index] * len(rows))
 
     pearson_and_spearman_df = calculate_coef_and_pval(size_df)
     print(
