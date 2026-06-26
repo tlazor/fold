@@ -73,9 +73,6 @@ def main():
 
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(0.8)
-        torch.cuda.memory.set_per_process_memory_fraction(0.8)
-        torch.backends.cuda.enable_flash_sdp(True)
-        torch.backends.cuda.enable_mem_efficient_sdp(True)
 
     torch.set_float32_matmul_precision("high")
     torch._dynamo.config.capture_scalar_outputs = True
