@@ -21,7 +21,7 @@ def get_token_likelihood_vec(
     token_ids,
     attention_mask,
     mask_token_id,
-    chunk_size: int = 10,
+    chunk_size: int = 32,
 ) -> list:
     """
     Compute the likelihood (probability) of each non-special token in `text`
@@ -136,6 +136,9 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
         model = AutoModelForMaskedLM.from_pretrained(self.model_name)
 
         model.to(device)
+        if device.type == "cuda":
+            dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            model = model.to(dtype)
         model.eval()
 
         results = []

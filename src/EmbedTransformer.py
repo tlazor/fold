@@ -55,6 +55,9 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
         device = self.device if self.device is not None else auto_device()
         model = AutoModel.from_pretrained(self.model_name)
         model.to(device)
+        if device.type == "cuda":
+            dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            model = model.to(dtype)
         model.eval()
 
         results = []
