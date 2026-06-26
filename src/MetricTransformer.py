@@ -1,5 +1,6 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
+from joblib import Parallel, delayed
 from rich.progress import track
 
 
@@ -232,17 +233,17 @@ class MetricTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        # samples x langs x langs
-        # samples x langs x tokens x hidden_dim
+        # X shape: (samples, langs, ...) — each sample is independent
         if self.name == "coherence_fun" and len(X[0].shape) == 3:
             import cupy as cp
 
             X_gpu = [cp.asarray(x) for x in X]
-            return np.stack(
-                [self.metric_fun(x) for x in (track(X_gpu) if self.verbose else X_gpu)],
-                axis=0,
-            )
-        else:
-            return np.stack(
-                [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
-            )
+            iterable = track(X_gpu) if self.verbose else X_gpu
+            return np.stack([self.metric_fun(x) for x in iterable], axis=0)
+
+        # CPU path: parallelise across samples (metric_fun is stateless, no GIL contention
+        # because NumPy/SciPy release the GIL for the heavy arithmetic).
+        results = Parallel(n_jobs=-1, prefer="threads")(
+            delayed(self.metric_fun)(x) for x in X
+        )
+        return np.stack(results, axis=0)
