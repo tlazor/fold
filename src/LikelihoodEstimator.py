@@ -135,15 +135,16 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
     def __init__(self, model_name="bert-base-multilingual-cased", mask_token_id=103, device=None):
         self.model_name = model_name
         self.mask_token_id = mask_token_id
-        self.device = device if device is not None else _auto_device()
+        self.device = device
 
     def fit(self, X, y=None):
         return self
 
     def transform(self, X):
+        device = self.device if self.device is not None else _auto_device()
         model = AutoModelForMaskedLM.from_pretrained(self.model_name)
 
-        model.to(self.device)
+        model.to(device)
         model.eval()
 
         results = []

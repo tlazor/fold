@@ -35,6 +35,6 @@ ADD .python-version /fold
 
 WORKDIR /fold
 # cache download of bert
-RUN uv run download_bert.py
+RUN uv run --no-project download_bert.py
 
 ADD . /fold

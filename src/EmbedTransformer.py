@@ -56,14 +56,15 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
         self.model_name = model_name
         self.mask_token_id = mask_token_id
         self.layer = layer
-        self.device = device if device is not None else _auto_device()
+        self.device = device
 
     def fit(self, X, y=None):
         return self
 
     def transform(self, X):
+        device = self.device if self.device is not None else _auto_device()
         model = AutoModel.from_pretrained(self.model_name)
-        model.to(self.device)
+        model.to(device)
         model.eval()
 
         results = []
@@ -81,7 +82,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
             results.append(
                 torch.vstack(
                     [
-                        torch.nn.functional.pad(t, (0, max_len - t.shape[0]))
+                        torch.nn.functional.pad(t, (0, 0, 0, max_len - t.shape[1]))
                         for t in token_arrays
                     ]
                 )
