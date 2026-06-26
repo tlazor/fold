@@ -181,6 +181,9 @@ def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_
 
 
 def analyze_pearson_contrib(results_long, model_name):
+    if "pearson_contrib" not in results_long.columns:
+        print("analyze_pearson_contrib: no correlations computed (results_long is empty); skipping")
+        return
     df = results_long["pearson_contrib"]
 
     for index, metric_pearson_contrib in df.items():
