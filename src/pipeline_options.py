@@ -198,7 +198,7 @@ class PipelineOptions:
             "spectral_mode": self.spectral_mode,
             "layers": self.layers,
             "num_bands": self.num_bands,
-            "freq_bands": [list(b) for b in self.freq_bands],
+            "freq_bands": [[float(v) for v in b] for b in self.freq_bands],
             "analyze_pearson_contrib": self.analyze_pearson_contrib,
             "output_dir": str(self.output_dir),
         }
