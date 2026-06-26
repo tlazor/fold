@@ -27,19 +27,13 @@ def compute_overlaps(freq_spectra):
         # Sum along the frequency dimension (the last axis), resulting in (num_langs, num_langs)
         overlap_matrix = pairwise_mins.sum(axis=-1)
     elif len(freq_spectra.shape) == 3:
-        # overlap(i,j)=embed_dim1​d=1∑embed_dim​(f=1∑num_freq_bins​min(freq_spectra[i,f,d],freq_spectra[j,f,d]))
-        num_lang, num_freq, embed_dim = freq_spectra.shape
-        overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
-
-        for i in range(num_lang):
-            for j in range(num_lang):
-                # min_spec has shape (num_freq, embed_dim)
-                min_spec = np.minimum(freq_spectra[i], freq_spectra[j])
-                # sum over the frequency axis -> shape (embed_dim,)
-                sum_over_freq = np.sum(min_spec, axis=0)
-                # average across the embedding dimension -> scalar
-                overlap_value = np.mean(sum_over_freq)
-                overlap_matrix[i, j] = overlap_value
+        # overlap(i,j) = mean_d( sum_f min(s[i,f,d], s[j,f,d]) )
+        # Broadcast to (L, L, num_freq, embed_dim), take elem-wise min, sum over freq, mean over dim.
+        pairwise_mins = np.minimum(
+            freq_spectra[:, np.newaxis, :, :],  # (L, 1, F, D)
+            freq_spectra[np.newaxis, :, :, :],  # (1, L, F, D)
+        )  # → (L, L, F, D)
+        overlap_matrix = pairwise_mins.sum(axis=2).mean(axis=2)  # (L, L)
 
     return overlap_matrix
 
