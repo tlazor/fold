@@ -13,6 +13,18 @@ from paths import CACHE_DIR, auto_device
 memory = Memory(CACHE_DIR / "joblib", verbose=0)
 
 
+def _load_model(model_cls, model_name: str, device: torch.device):
+    """Load a HuggingFace model with Flash Attention 2 when available."""
+    kwargs = {}
+    if device.type == "cuda":
+        try:
+            import flash_attn  # noqa: F401
+            kwargs["attn_implementation"] = "flash_attention_2"
+        except ImportError:
+            pass
+    return model_cls.from_pretrained(model_name, **kwargs)
+
+
 @memory.cache(ignore=["model"])
 def get_token_embeddings(
     model: nn.Module, model_name: str, input_ids, attention_mask, layer
@@ -53,7 +65,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         device = self.device if self.device is not None else auto_device()
-        model = AutoModel.from_pretrained(self.model_name)
+        model = _load_model(AutoModel, self.model_name, device)
         model.to(device)
         if device.type == "cuda":
             dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16

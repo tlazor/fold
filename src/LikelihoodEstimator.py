@@ -104,6 +104,18 @@ def get_sample_likelihoods(
     return results
 
 
+def _load_model(model_cls, model_name: str, device: torch.device):
+    """Load a HuggingFace model with Flash Attention 2 when available."""
+    kwargs = {}
+    if device.type == "cuda":
+        try:
+            import flash_attn  # noqa: F401
+            kwargs["attn_implementation"] = "flash_attention_2"
+        except ImportError:
+            pass
+    return model_cls.from_pretrained(model_name, **kwargs)
+
+
 class LikelihoodEstimator(BaseEstimator, TransformerMixin):
     def __init__(self, model_name="bert-base-multilingual-cased", mask_token_id=103, device=None):
         self.model_name = model_name
@@ -115,7 +127,7 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         device = self.device if self.device is not None else auto_device()
-        model = AutoModelForMaskedLM.from_pretrained(self.model_name)
+        model = _load_model(AutoModelForMaskedLM, self.model_name, device)
 
         model.to(device)
         if device.type == "cuda":
