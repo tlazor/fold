@@ -6,7 +6,6 @@ imported in tests and notebooks without a GPU.
 """
 
 from datetime import datetime
-from pathlib import Path
 import warnings
 
 import langcodes

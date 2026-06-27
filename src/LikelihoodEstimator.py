@@ -46,13 +46,13 @@ def get_sample_likelihoods(
     lang_offsets: list[tuple[int, int]] = []
     offset = 0
 
-    for l in range(n_langs):
-        n_t = int(num_normal[l].item())
+    for lang_idx in range(n_langs):
+        n_t = int(num_normal[lang_idx].item())
         lang_offsets.append((offset, n_t))
         offset += n_t
 
-        repeated_ids = ids_t[l].unsqueeze(0).repeat(n_t, 1)  # (n_t, seq_len)
-        repeated_mask = masks_t[l].unsqueeze(0).repeat(n_t, 1)  # (n_t, seq_len)
+        repeated_ids = ids_t[lang_idx].unsqueeze(0).repeat(n_t, 1)  # (n_t, seq_len)
+        repeated_mask = masks_t[lang_idx].unsqueeze(0).repeat(n_t, 1)  # (n_t, seq_len)
 
         # Row i masks position i+1 (skip [CLS] at 0)
         row_idx = torch.arange(n_t)
@@ -93,14 +93,14 @@ def get_sample_likelihoods(
     all_logits = torch.cat(logit_chunks, dim=0)  # (total_rows, seq_len, vocab_size)
 
     results = []
-    for l, (start_row, n_t) in enumerate(lang_offsets):
+    for lang_idx, (start_row, n_t) in enumerate(lang_offsets):
         lang_logits = all_logits[
             start_row : start_row + n_t
         ]  # (n_t, seq_len, vocab_size)
         row_idx = torch.arange(n_t)
         selected = lang_logits[row_idx, row_idx + 1, :]  # (n_t, vocab_size)
         log_probs = F.log_softmax(selected, dim=-1)
-        original_ids = ids_t[l, 1 : n_t + 1]
+        original_ids = ids_t[lang_idx, 1 : n_t + 1]
         probs = log_probs[row_idx, original_ids].exp()
         results.append(probs)
 
