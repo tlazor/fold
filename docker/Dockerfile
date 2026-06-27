@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.0-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:13.3.0-cudnn-devel-ubuntu22.04
 
 ARG user=dev
 
@@ -7,14 +7,8 @@ RUN apt-get update -y && \
     git \
     curl ca-certificates \
     sudo \
-    wget
-
-
-RUN wget https://developer.download.nvidia.com/compute/cusparselt/0.7.0/local_installers/cusparselt-local-repo-ubuntu2204-0.7.0_1.0-1_amd64.deb
-RUN sudo dpkg -i cusparselt-local-repo-ubuntu2204-0.7.0_1.0-1_amd64.deb
-RUN sudo cp /var/cusparselt-local-repo-ubuntu2204-0.7.0/cusparselt-*-keyring.gpg /usr/share/keyrings/
-RUN apt-get update
-RUN apt-get -y install libcusparselt0 libcusparselt-dev
+    wget \
+    libcusparselt0 libcusparselt-dev
 
 
 # Download the latest installer

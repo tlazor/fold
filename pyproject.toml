@@ -16,9 +16,9 @@ name = "fold"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13, <3.14"
 dependencies = [
-    "cupy-cuda12x>=13.4.1",
+    "cupy-cuda13x",
     "joblib>=1.4.2",
     "langcodes>=3.5.0",
     "levenshtein>=0.27.1",
@@ -36,12 +36,16 @@ dependencies = [
     "triton>=3.2.0",
 ]
 
+[tool.uv]
+environments = ["sys_platform == 'linux'"]
+
 [tool.uv.sources]
 torch = { index = "pytorch" }
 
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu126"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
 
 [dependency-groups]
 dev = ["pytest>=8.0.0"]
