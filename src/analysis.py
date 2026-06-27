@@ -69,11 +69,15 @@ def calculate_correlations_new(dataframes):
 
                 s_coef, s_pval = spearmanr(x, y)
 
-                # Use scipy's O(n log n) merge-sort Kendall τ instead of the
-                # previous O(n²) manual concordant/discordant pair loop.
+                # Use scipy's O(n log n) merge-sort Kendall τ.
+                # kendalltau returns tau-b (tie-corrected); back-computing raw
+                # concordant/discordant counts from tau-b is wrong when data has
+                # ties (the denominator differs from n*(n-1)/2).  We surface the
+                # statistic and p-value directly instead.
+                # NaN is returned when all values are identical; skip those pairs.
                 kt = kendalltau(x, y)
-                num_concordant = int(round((1 + kt.statistic) / 2 * (len(x) * (len(x) - 1) / 2)))
-                num_discordant = int(len(x) * (len(x) - 1) / 2) - num_concordant
+                if np.isnan(kt.statistic):
+                    continue
 
                 all_correlations.append(
                     {
@@ -82,10 +86,10 @@ def calculate_correlations_new(dataframes):
                         "p_pval": p_pval,
                         "s_coef": s_coef,
                         "s_pval": s_pval,
+                        "kt_coef": kt.statistic,
+                        "kt_pval": kt.pvalue,
                         "num_points": len(x),
                         "pearson_contrib": pointwise_pearson,
-                        "num_concordant": num_concordant,
-                        "num_discordant": num_discordant,
                     }
                 )
 
