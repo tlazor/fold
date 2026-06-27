@@ -205,9 +205,5 @@ class PipelineOptions:
             "output_dir": str(self.output_dir),
         }
 
-    def save(self, path):
-        """Write resolved config as JSON alongside an output file."""
-        Path(path).write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
-
     def print_config(self, file=None):
         print(json.dumps(self.to_dict(), indent=2), file=file, flush=True)
