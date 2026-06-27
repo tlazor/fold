@@ -20,6 +20,7 @@ def get_sample_likelihoods(
     all_attention_masks,
     mask_token_id: int,
     chunk_size: int = 12,
+    model_dtype: str = "torch.float32",
 ) -> list:
     """
     Compute per-token likelihoods for all languages in one sample via a single
@@ -31,7 +32,7 @@ def get_sample_likelihoods(
     Returns a list of n_langs 1-D tensors, each holding the probability of
     every non-special token in that language's sentence.
     """
-    device = model.device
+    device = next(model.parameters()).device
     n_langs = all_token_ids.shape[0]
 
     ids_t = torch.from_numpy(all_token_ids)  # (n_langs, seq_len)
@@ -122,6 +123,7 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
         model = load_hf_model(AutoModelForMaskedLM, self.model_name, device)
         model.to(device)
         model.eval()
+        model_dtype = str(next(model.parameters()).dtype)
         model = torch.compile(model)
 
         results = []
@@ -136,6 +138,7 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
                 all_ids,
                 all_masks,
                 self.mask_token_id,
+                model_dtype=model_dtype,
             )
 
             max_len = max(t.shape[0] for t in token_arrays)
