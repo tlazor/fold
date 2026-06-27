@@ -70,9 +70,26 @@ class SpectralTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        # max_length = 0
-        # for x in X:
-        #     num_langs, sample_len = x.shape
-        #     max_length = max(max_length, sample_len)
+        from scipy.interpolate import interp1d
 
-        return [circular_optimized(x)[1] for x in X]
+        all_power = []
+        all_freqs = []
+        for x in X:
+            half = x.shape[1] // 2
+            _, power = circular_optimized(x)
+            all_power.append(power)
+            all_freqs.append(np.linspace(0.0, 0.5, half, endpoint=False))
+
+        # Different samples may have different token counts, giving different
+        # numbers of FFT bins (N//2).  Interpolate everything onto the grid of
+        # the shortest sequence to keep shapes uniform without extrapolation.
+        n_common = min(p.shape[1] for p in all_power)
+        common_freqs = np.linspace(0.0, 0.5, n_common, endpoint=False)
+
+        out = []
+        for power, freqs in zip(all_power, all_freqs):
+            if power.shape[1] != n_common:
+                power = interp1d(freqs, power, axis=1, fill_value="extrapolate")(common_freqs)
+            out.append(power)
+
+        return out
