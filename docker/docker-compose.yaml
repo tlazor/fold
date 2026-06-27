@@ -9,7 +9,9 @@ services:
           devices:
             - driver: nvidia
               count: all
-              capabilities: [ gpu ]
+              capabilities: [gpu]
+    volumes:
+      - ../data:/fold/data:ro
     command: /bin/bash
     stdin_open: true
     tty: true

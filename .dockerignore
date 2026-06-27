@@ -2,6 +2,14 @@
 .cache/
 __pycache__/
 .git/
+data/
 notes/
 plots/
 significant_output/
+tests/
+.claude/
+.ruff_cache/
+cache/
+.pytest_cache/
+review.md
+CLAUDE.md
