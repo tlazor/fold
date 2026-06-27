@@ -8,21 +8,9 @@ from transformers import AutoModel
 from rich.progress import track
 
 from joblib import Memory
-from paths import CACHE_DIR, auto_device
+from paths import CACHE_DIR, auto_device, load_hf_model
 
 memory = Memory(CACHE_DIR / "joblib", verbose=0)
-
-
-def _load_model(model_cls, model_name: str, device: torch.device):
-    """Load a HuggingFace model with Flash Attention 2 when available."""
-    kwargs = {}
-    if device.type == "cuda":
-        try:
-            import flash_attn  # noqa: F401
-            kwargs["attn_implementation"] = "flash_attention_2"
-        except ImportError:
-            pass
-    return model_cls.from_pretrained(model_name, **kwargs)
 
 
 @memory.cache(ignore=["model"])
@@ -39,7 +27,7 @@ def get_token_embeddings(
         model: HuggingFace-like model (e.g. BERT)
         input_ids, attention_mask
     """
-    device = model.device
+    device = next(model.parameters()).device
 
     # joblib cant currently deterministically hash tensors (they contain metadata about storage)
     input_ids = torch.from_numpy(input_ids).to(device)
@@ -65,11 +53,8 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         device = self.device if self.device is not None else auto_device()
-        model = _load_model(AutoModel, self.model_name, device)
+        model = load_hf_model(AutoModel, self.model_name, device)
         model.to(device)
-        if device.type == "cuda":
-            dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-            model = model.to(dtype)
         model.eval()
         model = torch.compile(model)
 

@@ -1,16 +1,13 @@
-from sklearn.base import BaseEstimator, TransformerMixin
-
 import numpy as np
 import torch
-from torch import nn
 import torch.nn.functional as F
-
+from joblib import Memory
+from rich.progress import track
+from sklearn.base import BaseEstimator, TransformerMixin
+from torch import nn
 from transformers import AutoModelForMaskedLM
 
-from rich.progress import track
-
-from joblib import Memory
-from paths import CACHE_DIR, auto_device
+from paths import CACHE_DIR, auto_device, load_hf_model
 
 memory = Memory(CACHE_DIR / "joblib", verbose=0)
 
@@ -22,7 +19,7 @@ def get_sample_likelihoods(
     all_token_ids,
     all_attention_masks,
     mask_token_id: int,
-    chunk_size: int = 32,
+    chunk_size: int = 12,
 ) -> list:
     """
     Compute per-token likelihoods for all languages in one sample via a single
@@ -37,7 +34,7 @@ def get_sample_likelihoods(
     device = model.device
     n_langs = all_token_ids.shape[0]
 
-    ids_t = torch.from_numpy(all_token_ids)    # (n_langs, seq_len)
+    ids_t = torch.from_numpy(all_token_ids)  # (n_langs, seq_len)
     masks_t = torch.from_numpy(all_attention_masks)  # (n_langs, seq_len)
 
     num_normal = masks_t.sum(dim=1).long() - 2  # exclude [CLS] and [SEP]
@@ -53,7 +50,7 @@ def get_sample_likelihoods(
         lang_offsets.append((offset, n_t))
         offset += n_t
 
-        repeated_ids = ids_t[l].unsqueeze(0).repeat(n_t, 1)    # (n_t, seq_len)
+        repeated_ids = ids_t[l].unsqueeze(0).repeat(n_t, 1)  # (n_t, seq_len)
         repeated_mask = masks_t[l].unsqueeze(0).repeat(n_t, 1)  # (n_t, seq_len)
 
         # Row i masks position i+1 (skip [CLS] at 0)
@@ -63,7 +60,7 @@ def get_sample_likelihoods(
         mega_ids_parts.append(repeated_ids)
         mega_mask_parts.append(repeated_mask)
 
-    mega_ids = torch.cat(mega_ids_parts, dim=0)    # (total_tokens, seq_len)
+    mega_ids = torch.cat(mega_ids_parts, dim=0)  # (total_tokens, seq_len)
     mega_masks = torch.cat(mega_mask_parts, dim=0)  # (total_tokens, seq_len)
 
     # Forward pass in chunks across the full mega-batch.
@@ -93,7 +90,9 @@ def get_sample_likelihoods(
 
     results = []
     for l, (start_row, n_t) in enumerate(lang_offsets):
-        lang_logits = all_logits[start_row : start_row + n_t]  # (n_t, seq_len, vocab_size)
+        lang_logits = all_logits[
+            start_row : start_row + n_t
+        ]  # (n_t, seq_len, vocab_size)
         row_idx = torch.arange(n_t)
         selected = lang_logits[row_idx, row_idx + 1, :]  # (n_t, vocab_size)
         log_probs = F.log_softmax(selected, dim=-1)
@@ -104,20 +103,10 @@ def get_sample_likelihoods(
     return results
 
 
-def _load_model(model_cls, model_name: str, device: torch.device):
-    """Load a HuggingFace model with Flash Attention 2 when available."""
-    kwargs = {}
-    if device.type == "cuda":
-        try:
-            import flash_attn  # noqa: F401
-            kwargs["attn_implementation"] = "flash_attention_2"
-        except ImportError:
-            pass
-    return model_cls.from_pretrained(model_name, **kwargs)
-
-
 class LikelihoodEstimator(BaseEstimator, TransformerMixin):
-    def __init__(self, model_name="bert-base-multilingual-cased", mask_token_id=103, device=None):
+    def __init__(
+        self, model_name="bert-base-multilingual-cased", mask_token_id=103, device=None
+    ):
         self.model_name = model_name
         self.mask_token_id = mask_token_id
         self.device = device
@@ -127,19 +116,15 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         device = self.device if self.device is not None else auto_device()
-        model = _load_model(AutoModelForMaskedLM, self.model_name, device)
-
+        model = load_hf_model(AutoModelForMaskedLM, self.model_name, device)
         model.to(device)
-        if device.type == "cuda":
-            dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-            model = model.to(dtype)
         model.eval()
         model = torch.compile(model)
 
         results = []
         for sample in track(X):
             # Stack all language token arrays into (n_langs, seq_len) for batched inference.
-            all_ids = np.vstack([ids for ids, _ in sample])      # (n_langs, seq_len)
+            all_ids = np.vstack([ids for ids, _ in sample])  # (n_langs, seq_len)
             all_masks = np.vstack([mask for _, mask in sample])  # (n_langs, seq_len)
 
             token_arrays = get_sample_likelihoods(
