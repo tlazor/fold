@@ -1,8 +1,6 @@
 import random
 from sklearn.base import BaseEstimator, TransformerMixin
 
-import constants
-
 
 class SampleTokens(BaseEstimator, TransformerMixin):
     def __init__(self, num_samples=500, minimum_tokens=10, seed=0):

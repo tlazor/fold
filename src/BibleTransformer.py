@@ -41,7 +41,7 @@ class BibleTransformer(BaseEstimator, TransformerMixin):
                 if lang_2l != "sl"
                 else "Slovene"
             )
-            first_book_lang_file = Path("data/aligned/1-b.GEN") / f"{lang_name}.txt"
+            first_book_lang_file = self.file_path / "1-b.GEN" / f"{lang_name}.txt"
             if first_book_lang_file.exists():
                 lang_filenames.append(f"{lang_name}.txt")
             else:

@@ -1,0 +1,18 @@
+use_bible=False, use_un6=True, use_spectra=True, straight_spectra=False, use_bert=False, model_name='FacebookAI/xlm-roberta-base'
+band=(0, 1)
+compute_overlaps (600, 6, 6)
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| fsi      |   -0.804 |    0.101 |   -0.791 |    0.111 |            5 |
+| pho_sim  |   -0.500 |    0.312 |   -0.829 |    0.042 |            6 |
+kl_divergence_matrix (600, 6, 6)
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| fsi      |    0.774 |    0.125 |    0.949 |    0.014 |            5 |
+| mut_int  |    1.000 |    1.000 |    1.000 |  nan     |            2 |
+| pho_sim  |    0.421 |    0.405 |    0.829 |    0.042 |            6 |
+coherence_fun (600, 6, 6)
+| metric   |   p_coef |   p_pval |   s_coef |   s_pval |   num_points |
+|----------|----------|----------|----------|----------|--------------|
+| fsi      |   -0.612 |    0.272 |   -0.632 |    0.252 |            5 |
+| pho_sim  |   -0.824 |    0.044 |   -0.771 |    0.072 |            6 |

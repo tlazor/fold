@@ -1,111 +1,213 @@
 """
-Shared configuration options for pipeline and embed_pipeline scripts.
+Configuration for the FOLD pipeline.
+
+Use PipelineOptions.from_args() to parse CLI arguments at the entry point,
+or PipelineOptions(**kwargs) for programmatic / test use.
 """
 
+import argparse
+import functools
+import json
 from pathlib import Path
-from transformers import AutoTokenizer
+from paths import CACHE_DIR
 
 
 class PipelineOptions:
-    """Configuration class for pipeline options."""
-    
-    def __init__(self):
-        # Data source options
-        self.use_bible = True
-        self.use_un6 = False
-        
-        # Model options
-        self.use_bert = True
-        self.model_name = (
-            "bert-base-multilingual-cased" if self.use_bert else "FacebookAI/xlm-roberta-base"
-        )
-        
-        # Spectra options (mutually exclusive)
-        self.no_spectra = False
-        self.straight_spectra = False
-        
-        # Validate mutual exclusion
-        self._validate_spectra_options()
-        
-        # Embedding pipeline specific options
-        self.use_cache = False  # Set to False to force recomputation
-        self.layers = [12]  # For embedding pipeline
-        
-        # Analysis options
-        self.analyze_pearson_contrib = False  # Control whether to analyze Pearson contribution
-        
-        # Frequency bands
-        self.num_bands = 1
-        if self.num_bands > 1:
+    def __init__(
+        self,
+        dataset="xnli",
+        model="bert",
+        signal_mode="likelihood",
+        spectral_mode="welch",
+        layers=None,
+        num_bands=1,
+        analyze_pearson_contrib=False,
+        output_dir=".",
+    ):
+        """
+        Parameters
+        ----------
+        dataset : {"xnli", "bible", "un6"}
+        model : {"bert", "xlmr"}
+        signal_mode : {"likelihood", "embedding"}
+            likelihood — masked token log-probabilities (LikelihoodEstimator)
+            embedding  — hidden-layer embeddings (EmbedTransformer), loops over layers
+        spectral_mode : {"welch", "fft", "none"}
+            welch — Welch PSD (default)
+            fft   — circular-averaged FFT power spectrum
+            none  — raw token signal, no spectral transform
+        layers : list of int
+            Hidden layers to extract (embedding mode only).
+        num_bands : int
+            Number of equal-width frequency sub-bands.
+        analyze_pearson_contrib : bool
+            Plot per-pair Pearson contribution heatmaps.
+        output_dir : str or Path
+            Directory for output .txt and .json files.
+        """
+        if dataset not in {"xnli", "bible", "un6"}:
+            raise ValueError(f"dataset must be 'xnli', 'bible', or 'un6', got {dataset!r}")
+        if model not in {"bert", "xlmr"}:
+            raise ValueError(f"model must be 'bert' or 'xlmr', got {model!r}")
+        if signal_mode not in {"likelihood", "embedding"}:
+            raise ValueError(f"signal_mode must be 'likelihood' or 'embedding', got {signal_mode!r}")
+        if spectral_mode not in {"welch", "fft", "none"}:
+            raise ValueError(f"spectral_mode must be 'welch', 'fft', or 'none', got {spectral_mode!r}")
+
+        self.dataset = dataset
+        self.model = model
+        self.signal_mode = signal_mode
+        self.spectral_mode = spectral_mode
+        self.layers = layers if layers is not None else [12]
+        if not self.layers:
+            raise ValueError("layers must be non-empty")
+        self.num_bands = num_bands
+        self.analyze_pearson_contrib = analyze_pearson_contrib
+        self.output_dir = Path(output_dir)
+
+        if num_bands > 1:
             import numpy as np
-            beginning_freqs = np.linspace(0, 1, num=self.num_bands, endpoint=False)
+            beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
             self.freq_bands = list(zip(
-                beginning_freqs, np.linspace(beginning_freqs[1], 1, num=self.num_bands)
+                beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands)
             ))
         else:
             self.freq_bands = [(0, 1)]
-    
-    def _validate_spectra_options(self):
-        """Validate that only one spectra option is True."""
-        spectra_options = [self.no_spectra, self.straight_spectra]
-        true_count = sum(spectra_options)
-        
-        # 0 is fine, it means use welch's method
-        if true_count > 1:
-            raise ValueError(
-                f"Exactly one spectra option must be True, but found {true_count} True values: "
-                f"no_spectra={self.no_spectra}, "
-                f"straight_spectra={self.straight_spectra}"
-            )
-    
+
+    @classmethod
+    def from_args(cls):
+        """Parse configuration from sys.argv."""
+        parser = argparse.ArgumentParser(
+            description="FOLD (Fourier Overlap Linguistic Distance) pipeline"
+        )
+        parser.add_argument(
+            "--dataset",
+            choices=["xnli", "bible", "un6"],
+            default="xnli",
+            help="Parallel corpus to use (default: xnli)",
+        )
+        parser.add_argument(
+            "--model",
+            choices=["bert", "xlmr"],
+            default="bert",
+            help="Multilingual model (default: bert)",
+        )
+        parser.add_argument(
+            "--spectral-mode",
+            choices=["welch", "fft", "none"],
+            default="welch",
+            dest="spectral_mode",
+            help=(
+                "Spectral transform: welch PSD (default), "
+                "circular FFT, or none (raw token signal)"
+            ),
+        )
+        parser.add_argument(
+            "--layers",
+            type=int,
+            nargs="+",
+            default=[12],
+            help="Hidden layers to extract for the embedding pipeline (default: 12)",
+        )
+        parser.add_argument(
+            "--num-bands",
+            type=int,
+            default=1,
+            dest="num_bands",
+            help="Number of frequency sub-bands to analyse (default: 1 = full spectrum)",
+        )
+        parser.add_argument(
+            "--analyze-pearson-contrib",
+            action="store_true",
+            dest="analyze_pearson_contrib",
+            help="Plot per-pair Pearson contribution heatmaps",
+        )
+        parser.add_argument(
+            "--signal-mode",
+            choices=["likelihood", "embedding"],
+            default="likelihood",
+            dest="signal_mode",
+            help="Signal extraction mode: likelihood (default) or embedding",
+        )
+        parser.add_argument(
+            "--output-dir",
+            default=".",
+            dest="output_dir",
+            help="Directory for output files (default: current directory)",
+        )
+        args = parser.parse_args()
+        return cls(
+            dataset=args.dataset,
+            model=args.model,
+            signal_mode=args.signal_mode,
+            spectral_mode=args.spectral_mode,
+            layers=args.layers,
+            num_bands=args.num_bands,
+            analyze_pearson_contrib=args.analyze_pearson_contrib,
+            output_dir=args.output_dir,
+        )
+
+    # ------------------------------------------------------------------
+    # Derived properties
+    # ------------------------------------------------------------------
+
+    @property
+    def model_name(self):
+        return (
+            "bert-base-multilingual-cased"
+            if self.model == "bert"
+            else "FacebookAI/xlm-roberta-base"
+        )
+
+    @property
+    def use_bert(self):
+        return self.model == "bert"
+
     @property
     def short_model_name(self):
-        """Get short model name for file naming."""
-        return "bert" if self.use_bert else "xlmr"
-    
+        return self.model
+
     @property
     def prefix(self):
-        """Get prefix for output files."""
-        if self.use_bible:
-            return "bible"
-        elif self.use_un6:
-            return "un6"
-        else:
-            return "xnli"
-    
+        return self.dataset
+
     @property
     def cachedir(self):
-        """Get cache directory path."""
-        return Path(f".cache/joblib/tmp/{self.short_model_name}")
-    
-    @property
+        return CACHE_DIR / "joblib" / "tmp" / self.model
+
+    @functools.cached_property
     def mask_token_id(self):
-        """Get mask token ID for the model."""
+        from transformers import AutoTokenizer
         return AutoTokenizer.from_pretrained(
             self.model_name, clean_up_tokenization_spaces=True
         ).mask_token_id
-    
-    def get_output_filename(self, pipeline_type="likelihood"):
-        """Get output filename based on pipeline type."""
-        if pipeline_type == "likelihood":
-            return f"./{self.prefix}_{self.short_model_name}_likelihood_output.txt"
-        elif pipeline_type == "embedding":
-            return f"./{self.prefix}_{self.short_model_name}_embedding_output.txt"
-        else:
-            raise ValueError(f"Unknown pipeline type: {pipeline_type}")
-    
+
+    def get_output_filename(self, pipeline_type=None):
+        pt = pipeline_type if pipeline_type is not None else self.signal_mode
+        stem = f"{self.dataset}_{self.model}_{pt}_output"
+        return str(self.output_dir / f"{stem}.txt")
+
+    # ------------------------------------------------------------------
+    # Config serialisation
+    # ------------------------------------------------------------------
+
+    def to_dict(self):
+        return {
+            "dataset": self.dataset,
+            "model": self.model,
+            "model_name": self.model_name,
+            "signal_mode": self.signal_mode,
+            "spectral_mode": self.spectral_mode,
+            "layers": self.layers,
+            "num_bands": self.num_bands,
+            "freq_bands": [[float(v) for v in b] for b in self.freq_bands],
+            "analyze_pearson_contrib": self.analyze_pearson_contrib,
+            "output_dir": str(self.output_dir),
+        }
+
+    def save(self, path):
+        """Write resolved config as JSON alongside an output file."""
+        Path(path).write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
+
     def print_config(self, file=None):
-        """Print configuration options."""
-        config_str = (
-            f"{self.use_bible=}, {self.use_un6=}, "
-            f"{self.no_spectra=}, {self.straight_spectra=}, "
-            f"{self.use_bert=}, {self.model_name=}, "
-            f"{self.layers=}, {self.num_bands=}, {self.use_cache=}, "
-            f"{self.analyze_pearson_contrib=}"
-        )
-        print(config_str, file=file, flush=True)
-        return config_str
-
-
-# Default configuration instance
-config = PipelineOptions() 
+        print(json.dumps(self.to_dict(), indent=2), file=file, flush=True)

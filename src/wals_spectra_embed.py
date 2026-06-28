@@ -2,7 +2,6 @@ from pathlib import Path
 from joblib import Memory
 import langcodes
 from sklearn.pipeline import Pipeline
-import torch
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -23,11 +22,9 @@ from MetricTransformer import (
     kl_divergence_matrix,
 )
 
-from pipeline import get_langs
 from wals_spectra import compute_spectra_for_langs, get_langs_with_wals_feature
-from pipeline_options import config
+from pipeline_options import PipelineOptions
 
-import fold_globals
 import constants
 
 
@@ -87,20 +84,12 @@ def analyze_spectra_by_feature_value(
 
 
 def main():
-    # Set up device
-    if torch.cuda.is_available():
-        fold_globals.DEVICE = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        fold_globals.DEVICE = torch.device("mps")
-    else:
-        fold_globals.DEVICE = torch.device("cpu")
-    print("Using device:", fold_globals.DEVICE)
+    config = PipelineOptions()
 
     plot_dir = Path(".") / "plots"
     if not plot_dir.exists():
         plot_dir.mkdir(parents=True)
 
-    # Get mask token ID using shared config
     mask_token_id = config.mask_token_id
 
     # Specify WALS feature to analyze

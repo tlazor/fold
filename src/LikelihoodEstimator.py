@@ -1,6 +1,4 @@
-from pathlib import Path
 from sklearn.base import BaseEstimator, TransformerMixin
-import numpy as np
 
 import torch
 from torch import nn
@@ -10,16 +8,13 @@ from transformers import AutoModelForMaskedLM
 
 from rich.progress import track
 
-import fold_globals
-
 from joblib import Memory
+from paths import CACHE_DIR, auto_device
 
-cachedir = Path(".cache/joblib")
-memory = Memory(cachedir, verbose=0)
+memory = Memory(CACHE_DIR / "joblib", verbose=0)
 
 
 @memory.cache(ignore=["model", "chunk_size"])
-@torch.compile
 def get_token_likelihood_vec(
     model: nn.Module,
     model_name: str,
@@ -128,46 +123,19 @@ def get_token_likelihood_vec(
 
 
 class LikelihoodEstimator(BaseEstimator, TransformerMixin):
-    def __init__(self, model_name="bert-base-multilingual-cased", mask_token_id=103):
+    def __init__(self, model_name="bert-base-multilingual-cased", mask_token_id=103, device=None):
         self.model_name = model_name
         self.mask_token_id = mask_token_id
+        self.device = device
 
     def fit(self, X, y=None):
-        """
-        Learn something from the data if needed.
-
-        X : array-like or dataframe of shape (n_samples, n_features)
-        y : array-like of shape (n_samples,) or None
-        """
-        # This transformer doesn't learn anything from the data,
-        # so we just return self.
         return self
 
     def transform(self, X):
-        """
-        Computes token likelihoods for each cell in the DataFrame `X`.
-        For each sample (row), we:
-        1. Get an array of token likelihoods for each language (column).
-        2. Find the max token length among all languages for that sample.
-        3. Pad each likelihood array to that max length.
-        4. Combine into an array of shape (n_features, max_length_for_sample).
-
-        Parameters
-        ----------
-        X : pd.DataFrame
-            Each row corresponds to one "sample", and each column is a language's text.
-            E.g., X might have columns ["ar", "bg", "de", "en", ...].
-
-        Returns
-        -------
-        results : list of np.ndarray
-            A list of length n_samples, where each element has shape (n_features, max_len_for_that_sample).
-            - n_features = number of language columns
-            - max_len_for_that_sample = max token length among the language texts for that sample
-        """
+        device = self.device if self.device is not None else auto_device()
         model = AutoModelForMaskedLM.from_pretrained(self.model_name)
 
-        model.to(fold_globals.DEVICE)
+        model.to(device)
         model.eval()
 
         results = []
@@ -175,9 +143,6 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
             token_arrays = []
             max_len = 0
             for input_ids, attention_mask in sample:
-                # print(f"{input_ids=}")
-                # print(f"{attention_mask=}")
-                # exit()
                 token_likelihoods = get_token_likelihood_vec(
                     model,
                     self.model_name,

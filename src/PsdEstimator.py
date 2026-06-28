@@ -15,9 +15,6 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        # shape: [num_langs, num_tokens, hidden_dim]
-        print(f"PsdEstimator {X[0].shape=}")
-
         # First get all frequency ranges
         all_freqs = []
         all_psds = []
@@ -44,8 +41,10 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
         for freqs, psd in zip(all_freqs, all_psds):
             # Reshape psd to 2D if it's 3D
             if psd.ndim == 3:
-                n_tokens, n_freqs_orig, n_dims = psd.shape
-                psd_reshaped = psd.reshape(n_tokens * n_dims, n_freqs_orig)
+                n_langs, n_freqs_orig, n_dims = psd.shape
+                # Transpose to (langs, dims, freqs) so each row after reshape is one
+                # (lang, dim) PSD curve across all frequency bins.
+                psd_reshaped = psd.transpose(0, 2, 1).reshape(n_langs * n_dims, n_freqs_orig)
             else:
                 psd_reshaped = psd
 
@@ -58,7 +57,7 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
 
             # Reshape back to original dimensions if needed
             if psd.ndim == 3:
-                aligned_psd = aligned_psd.reshape(n_tokens, len(common_freqs), n_dims)
+                aligned_psd = aligned_psd.reshape(n_langs, n_dims, len(common_freqs)).transpose(0, 2, 1)
 
             aligned_psds.append(aligned_psd)
 

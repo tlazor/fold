@@ -1,0 +1,15 @@
+services:
+  fold:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    command: /bin/bash
+    stdin_open: true
+    tty: true
