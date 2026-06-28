@@ -1,6 +1,9 @@
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 
-model_name = "bert-base-multilingual-cased"
-
-tokenizer = AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
-model = AutoModelForMaskedLM.from_pretrained(model_name)
+for model_name in (
+    "bert-base-multilingual-cased",
+    "FacebookAI/xlm-roberta-base",
+):
+    print(f"Downloading {model_name}...")
+    AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
+    AutoModelForMaskedLM.from_pretrained(model_name)

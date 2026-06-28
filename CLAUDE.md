@@ -46,9 +46,7 @@ All pipeline behavior is controlled via CLI flags passed to `run_pipeline.py`. T
 | `--layers` | integers | `12` | Hidden layers to extract (embedding mode only) |
 | `--num-bands` | integer | `1` | Number of equal-width frequency sub-bands |
 | `--analyze-pearson-contrib` | flag | off | Plot per-pair Pearson contribution heatmaps |
-| `--output-dir` | path | `.` | Directory for output `.txt` and `.json` files |
-
-A JSON snapshot of the resolved config is saved alongside every output `.txt` file automatically.
+| `--output-dir` | path | `.` | Directory for output `.txt` files |
 
 Output files: `{output_dir}/{dataset}_{model}_{signal_mode}_output.txt`
 

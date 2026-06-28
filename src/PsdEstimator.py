@@ -10,12 +10,25 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
         self.window = window
         self.scaling = scaling
         self.axis = axis
+        # Lazily computed on first transform() call; reused for every sample.
+        self._common_freqs = None
 
     def fit(self, X, y=None):
         return self
 
+    def _aligned_psd(self, psd, freqs):
+        """Interpolate one sample's PSD onto the shared frequency grid."""
+        if psd.ndim == 3:
+            n_langs, n_freqs_orig, n_dims = psd.shape
+            psd_2d = psd.transpose(0, 2, 1).reshape(n_langs * n_dims, n_freqs_orig)
+            interp_2d = interp1d(freqs, psd_2d, axis=1, fill_value="extrapolate")(
+                self._common_freqs
+            )
+            return interp_2d.reshape(n_langs, n_dims, len(self._common_freqs)).transpose(0, 2, 1)
+        interp_func = interp1d(freqs, psd, axis=1, fill_value="extrapolate")
+        return interp_func(self._common_freqs)
+
     def transform(self, X):
-        # First get all frequency ranges
         all_freqs = []
         all_psds = []
         for x in X:
@@ -30,35 +43,13 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
             all_freqs.append(freqs)
             all_psds.append(psd)
 
-        # Find the common frequency range
-        min_freq = max(freqs[0] for freqs in all_freqs)
-        max_freq = min(freqs[-1] for freqs in all_freqs)
-        n_freqs = min(len(freqs) for freqs in all_freqs)
-        common_freqs = np.linspace(min_freq, max_freq, n_freqs)
+        # Build (or reuse) the common frequency grid once for the lifetime of this
+        # transformer.  All samples share the same nperseg / fs, so the grid is
+        # identical across calls — computing it 600 times per run is wasteful.
+        if self._common_freqs is None:
+            min_freq = max(f[0] for f in all_freqs)
+            max_freq = min(f[-1] for f in all_freqs)
+            n_freqs = min(len(f) for f in all_freqs)
+            self._common_freqs = np.linspace(min_freq, max_freq, n_freqs)
 
-        # Interpolate each PSD to the common frequency range
-        aligned_psds = []
-        for freqs, psd in zip(all_freqs, all_psds):
-            # Reshape psd to 2D if it's 3D
-            if psd.ndim == 3:
-                n_langs, n_freqs_orig, n_dims = psd.shape
-                # Transpose to (langs, dims, freqs) so each row after reshape is one
-                # (lang, dim) PSD curve across all frequency bins.
-                psd_reshaped = psd.transpose(0, 2, 1).reshape(n_langs * n_dims, n_freqs_orig)
-            else:
-                psd_reshaped = psd
-
-            # Create interpolation function
-            interp_func = interp1d(
-                freqs, psd_reshaped, axis=1, fill_value="extrapolate"
-            )
-            # Interpolate to common frequencies
-            aligned_psd = interp_func(common_freqs)
-
-            # Reshape back to original dimensions if needed
-            if psd.ndim == 3:
-                aligned_psd = aligned_psd.reshape(n_langs, n_dims, len(common_freqs)).transpose(0, 2, 1)
-
-            aligned_psds.append(aligned_psd)
-
-        return np.array(aligned_psds)
+        return np.array([self._aligned_psd(psd, freqs) for psd, freqs in zip(all_psds, all_freqs)])

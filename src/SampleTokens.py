@@ -1,4 +1,5 @@
 import random
+
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
@@ -12,7 +13,7 @@ class SampleTokens(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        n_samples = len(X)
+        # n_samples = len(X)
         n_langs = len(X[0])
 
         random.seed(self.seed)

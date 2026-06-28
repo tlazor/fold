@@ -6,15 +6,13 @@ imported in tests and notebooks without a GPU.
 """
 
 from datetime import datetime
-from itertools import combinations
-from pathlib import Path
 import warnings
 
 import langcodes
 from matplotlib.colors import TwoSlopeNorm
 from paths import DATA_DIR
 import matplotlib.transforms as mtransforms
-from scipy.stats import pearsonr, spearmanr, rankdata
+from scipy.stats import pearsonr, spearmanr, kendalltau
 
 import numpy as np
 import pandas as pd
@@ -70,15 +68,15 @@ def calculate_correlations_new(dataframes):
 
                 s_coef, s_pval = spearmanr(x, y)
 
-                rx = rankdata(x)
-                ry = rankdata(y)
-                num_concordant = 0
-                num_discordant = 0
-                for a, b in combinations(range(len(rx)), 2):
-                    concordant = (rx[a] - rx[b]) * (ry[a] - ry[b]) > 0
-                    discordant = (rx[a] - rx[b]) * (ry[a] - ry[b]) < 0
-                    num_concordant += concordant
-                    num_discordant += discordant
+                # Use scipy's O(n log n) merge-sort Kendall τ.
+                # kendalltau returns tau-b (tie-corrected); back-computing raw
+                # concordant/discordant counts from tau-b is wrong when data has
+                # ties (the denominator differs from n*(n-1)/2).  We surface the
+                # statistic and p-value directly instead.
+                # NaN is returned when all values are identical; skip those pairs.
+                kt = kendalltau(x, y)
+                if np.isnan(kt.statistic):
+                    continue
 
                 all_correlations.append(
                     {
@@ -87,10 +85,10 @@ def calculate_correlations_new(dataframes):
                         "p_pval": p_pval,
                         "s_coef": s_coef,
                         "s_pval": s_pval,
+                        "kt_coef": kt.statistic,
+                        "kt_pval": kt.pvalue,
                         "num_points": len(x),
                         "pearson_contrib": pointwise_pearson,
-                        "num_concordant": num_concordant,
-                        "num_discordant": num_discordant,
                     }
                 )
 
@@ -135,17 +133,18 @@ formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
 
 
 def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False):
+    if "en" not in langs:
+        raise ValueError(
+            f"English ('en') must be present in langs for FSI correlation; got {langs}"
+        )
     en_index = langs.index("en")
 
-    xnli_df = pd.DataFrame(
-        np.nanmedian(output, axis=0),
-        index=langs,
-        columns=langs,
-    )
+    median_matrix = np.nanmedian(output, axis=0)
+    xnli_df = pd.DataFrame(median_matrix, index=langs, columns=langs)
     for i in range(len(langs)):
         xnli_df.iloc[i, i] = np.nan
 
-    en_source_distances = np.nanmedian(output, axis=0)[en_index]
+    en_source_distances = median_matrix[en_index]
     df_fsi = pd.DataFrame(columns=["lang", "fsi", "fold"])
 
     for lang, fold_distance in zip(langs, en_source_distances):
@@ -177,6 +176,9 @@ def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_
 
 
 def analyze_pearson_contrib(results_long, model_name):
+    if "pearson_contrib" not in results_long.columns:
+        print("analyze_pearson_contrib: no correlations computed (results_long is empty); skipping")
+        return
     df = results_long["pearson_contrib"]
 
     for index, metric_pearson_contrib in df.items():
@@ -320,20 +322,25 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
 
 
 def analyze_wikisize(matrix, metric_name, index, model_name):
+    if model_name == "bert-base-multilingual-cased":
+        size_map = constants.language_wikisize
+    elif model_name == "FacebookAI/xlm-roberta-base":
+        size_map = constants.XLMR_SIZE_LOG
+    else:
+        raise ValueError(f"Model {model_name} not supported")
+
     rows = []
     for lang1 in matrix.index:
         for lang2 in matrix.columns:
             if lang1 == lang2:
                 continue
 
-            if model_name == "bert-base-multilingual-cased":
-                lang1_size = constants.language_wikisize[lang1]
-                lang2_size = constants.language_wikisize[lang2]
-            elif model_name == "FacebookAI/xlm-roberta-base":
-                lang1_size = constants.XLMR_SIZE_LOG[lang1]
-                lang2_size = constants.XLMR_SIZE_LOG[lang2]
-            else:
-                raise ValueError(f"Model {model_name} not supported")
+            if lang1 not in size_map or lang2 not in size_map:
+                print(f"Skipping ({lang1}, {lang2}): not in wikisize table")
+                continue
+
+            lang1_size = size_map[lang1]
+            lang2_size = size_map[lang2]
 
             rows.append({
                 "lang1_size": lang1_size,
@@ -363,38 +370,27 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
         plt.close()
 
     # English-only analysis
-    size_df = pd.DataFrame()
+    en_rows = []
     for lang1 in matrix.index:
         for lang2 in matrix.columns:
             if lang1 == lang2 or (lang1 != "en" and lang2 != "en"):
                 continue
 
-            if model_name == "bert-base-multilingual-cased":
-                lang1_size = constants.language_wikisize[lang1]
-                lang2_size = constants.language_wikisize[lang2]
-            elif model_name == "FacebookAI/xlm-roberta-base":
-                lang1_size = constants.XLMR_SIZE_LOG[lang1]
-                lang2_size = constants.XLMR_SIZE_LOG[lang2]
-            else:
-                raise ValueError(f"Model {model_name} not supported")
+            if lang1 not in size_map or lang2 not in size_map:
+                print(f"Skipping ({lang1}, {lang2}): not in wikisize table")
+                continue
 
-            min_size = min(lang1_size, lang2_size)
-            pearson_contrib = matrix.loc[lang1, lang2]
+            lang1_size = size_map[lang1]
+            lang2_size = size_map[lang2]
 
-            size_df = pd.concat(
-                [
-                    size_df,
-                    pd.DataFrame(
-                        {
-                            "lang1_size": lang1_size,
-                            "lang2_size": lang2_size,
-                            "pearson_contrib": pearson_contrib,
-                            "min_size": min_size,
-                        },
-                        index=[index],
-                    ),
-                ]
-            )
+            en_rows.append({
+                "lang1_size": lang1_size,
+                "lang2_size": lang2_size,
+                "pearson_contrib": matrix.loc[lang1, lang2],
+                "min_size": min(lang1_size, lang2_size),
+            })
+
+    size_df = pd.DataFrame(en_rows, index=[index] * len(en_rows))
 
     pearson_and_spearman_df = calculate_coef_and_pval(size_df, cols=["min_size"])
     print(
@@ -447,11 +443,13 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
 
     intersection = sorted(set(labels_a).intersection(set(labels_b)))
 
-    upper_triangle_mask = np.triu(np.ones(baseline.shape), k=0).astype(bool)
-    baseline_df = baseline.where(upper_triangle_mask) if symmetrical else baseline
-
     df_a_sub = xnli_df.loc[intersection, intersection]
-    df_b_sub = baseline_df.loc[intersection, intersection]
+    df_b_sub = baseline.loc[intersection, intersection]
+
+    if symmetrical:
+        n = len(intersection)
+        mask = np.triu(np.ones((n, n), dtype=bool), k=0)
+        df_b_sub = df_b_sub.where(mask)
 
     series_a_sub = df_a_sub.values.flatten()
     row_labels = df_a_sub.index

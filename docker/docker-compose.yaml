@@ -3,13 +3,21 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [ gpu ]
+    devices:
+      - nvidia.com/gpu=all
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia.com/gpu
+    #           count: all
+    #           capabilities: [gpu]
+    volumes:
+      - ../src:/fold/src:z
+      - ../data:/fold/data:ro,z
+      - ../data/models:/fold/data/models:z
+      - ../.cache:/fold/.cache:z
+      - ../cache:/fold/cache:z
     command: /bin/bash
     stdin_open: true
     tty: true

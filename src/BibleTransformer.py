@@ -1,7 +1,6 @@
-from pathlib import Path
+import langcodes
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
-import langcodes
 
 
 class BibleTransformer(BaseEstimator, TransformerMixin):

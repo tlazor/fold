@@ -1,31 +1,19 @@
-from pathlib import Path
-from joblib import Memory
-import langcodes
-from sklearn.pipeline import Pipeline
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
-from BandSelectTransformer import BandSelectTransformer
+import langcodes
+import matplotlib.pyplot as plt
+import numpy as np
+
 from BibleTransformer import BibleTransformer
 from EmbedTransformer import EmbedTransformer
+from pipeline_options import PipelineOptions
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
 from SampleTokens import SampleTokens
-from SpectralTransformer import SpectralTransformer
 from TokenTransform import TokenTransform
-from MetricTransformer import (
-    MetricTransformer,
-    kl_divergence_matrix,
-)
-
 from wals_spectra import compute_spectra_for_langs, get_langs_with_wals_feature
-from pipeline_options import PipelineOptions
-
-import constants
 
 
 def analyze_spectra_by_feature_value(
@@ -90,8 +78,6 @@ def main():
     if not plot_dir.exists():
         plot_dir.mkdir(parents=True)
 
-    mask_token_id = config.mask_token_id
-
     # Specify WALS feature to analyze
     wals_features = [
         "17A",
@@ -119,7 +105,7 @@ def main():
             ("sample", SampleTokens(num_samples=600, minimum_tokens=20, seed=0)),
             (
                 "embeddings",
-                EmbedTransformer(mask_token_id=mask_token_id, layer=config.layers[0]),
+                EmbedTransformer(model_name=config.model_name, layer=config.layers[0]),
             ),  # Using first layer from config
             ("est_psd", PsdEstimator(nperseg=56 * 2 - 1, axis=1)),
             ("norm_psd", PsdNormalizer(axis=1)),

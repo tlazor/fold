@@ -1,6 +1,50 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
+from joblib import Parallel, delayed
 from rich.progress import track
+
+try:
+    import numba
+
+    # Limit Numba's internal thread pool to 1: transform() uses joblib Parallel
+    # across samples, so Numba parallelism is already provided at that level.
+    # Without this, each joblib thread spawns a full Numba TBB/OpenMP sub-pool,
+    # creating up to cpu_count² threads and risking TBB deadlocks.
+    numba.set_num_threads(1)
+
+    @numba.njit(parallel=True, cache=True)
+    def _overlap_3d_nb(freq_spectra):
+        """Pairwise min-sum overlap for (L, F, D) spectra without a large (L,L,F,D) temporary."""
+        L, F, D = freq_spectra.shape
+        result = np.zeros((L, L), dtype=np.float64)
+        for i in numba.prange(L):
+            for j in range(L):
+                total = 0.0
+                for f in range(F):
+                    for d in range(D):
+                        a = freq_spectra[i, f, d]
+                        b = freq_spectra[j, f, d]
+                        total += a if a < b else b
+                result[i, j] = total / D
+        return result
+
+    @numba.njit(parallel=True, cache=True)
+    def _kl_beta_3d_nb(P_norm, LP):
+        """β[li, L, t] = Σ_s P_norm[li,t,s] * LP[L,t,s] — parallel over the li axis."""
+        L, T, S = P_norm.shape
+        beta = np.zeros((L, L, T), dtype=np.float64)
+        for li in numba.prange(L):
+            for ll in range(L):
+                for t in range(T):
+                    acc = 0.0
+                    for s in range(S):
+                        acc += P_norm[li, t, s] * LP[ll, t, s]
+                    beta[li, ll, t] = acc
+        return beta
+
+    _NUMBA_AVAILABLE = True
+except ImportError:
+    _NUMBA_AVAILABLE = False
 
 
 def compute_overlaps(freq_spectra):
@@ -27,19 +71,23 @@ def compute_overlaps(freq_spectra):
         # Sum along the frequency dimension (the last axis), resulting in (num_langs, num_langs)
         overlap_matrix = pairwise_mins.sum(axis=-1)
     elif len(freq_spectra.shape) == 3:
-        # overlap(i,j)=embed_dim1​d=1∑embed_dim​(f=1∑num_freq_bins​min(freq_spectra[i,f,d],freq_spectra[j,f,d]))
-        num_lang, num_freq, embed_dim = freq_spectra.shape
-        overlap_matrix = np.zeros((num_lang, num_lang), dtype=float)
-
-        for i in range(num_lang):
-            for j in range(num_lang):
-                # min_spec has shape (num_freq, embed_dim)
-                min_spec = np.minimum(freq_spectra[i], freq_spectra[j])
-                # sum over the frequency axis -> shape (embed_dim,)
-                sum_over_freq = np.sum(min_spec, axis=0)
-                # average across the embedding dimension -> scalar
-                overlap_value = np.mean(sum_over_freq)
-                overlap_matrix[i, j] = overlap_value
+        # overlap(i,j) = mean_d( sum_f min(s[i,f,d], s[j,f,d]) )
+        if _NUMBA_AVAILABLE:
+            try:
+                # Avoids allocating the large (L, L, F, D) intermediate array.
+                overlap_matrix = _overlap_3d_nb(np.ascontiguousarray(freq_spectra, dtype=np.float64))
+            except Exception:
+                pairwise_mins = np.minimum(
+                    freq_spectra[:, np.newaxis, :, :],
+                    freq_spectra[np.newaxis, :, :, :],
+                )
+                overlap_matrix = pairwise_mins.sum(axis=2).mean(axis=2)
+        else:
+            pairwise_mins = np.minimum(
+                freq_spectra[:, np.newaxis, :, :],
+                freq_spectra[np.newaxis, :, :, :],
+            )
+            overlap_matrix = pairwise_mins.sum(axis=2).mean(axis=2)
 
     return overlap_matrix
 
@@ -90,8 +138,16 @@ def kl_divergence_matrix(P, epsilon=1e-15):
         alpha = np.sum(P_norm * LP, axis=-1)                 # shape (L, T)
 
         # 4) β[i, j, t] = Σ_x  p[i,t,x] log p[j,t,x]
-        #    Pair-wise across languages with einsum
-        beta = np.einsum("lts,Lts->lLt", P_norm, LP)         # shape (L, L, T)
+        if _NUMBA_AVAILABLE:
+            try:
+                beta = _kl_beta_3d_nb(
+                    np.ascontiguousarray(P_norm, dtype=np.float64),
+                    np.ascontiguousarray(LP, dtype=np.float64),
+                )
+            except Exception:
+                beta = np.einsum("lts,Lts->lLt", P_norm, LP)  # shape (L, L, T)
+        else:
+            beta = np.einsum("lts,Lts->lLt", P_norm, LP)  # shape (L, L, T)
 
         # 5) KL[i, j, t] = α[i,t] − β[i,j,t]
         KL_per_token = alpha[:, None, :] - beta              # shape (L, L, T)
@@ -238,17 +294,17 @@ class MetricTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        # samples x langs x langs
-        # samples x langs x tokens x hidden_dim
+        # X shape: (samples, langs, ...) — each sample is independent
         if self.name == "coherence_fun" and len(X[0].shape) == 3:
             import cupy as cp
 
             X_gpu = [cp.asarray(x) for x in X]
-            return np.stack(
-                [self.metric_fun(x) for x in (track(X_gpu) if self.verbose else X_gpu)],
-                axis=0,
-            )
-        else:
-            return np.stack(
-                [self.metric_fun(x) for x in (track(X) if self.verbose else X)], axis=0
-            )
+            iterable = track(X_gpu) if self.verbose else X_gpu
+            return np.stack([self.metric_fun(x) for x in iterable], axis=0)
+
+        # CPU path: parallelise across samples (metric_fun is stateless, no GIL contention
+        # because NumPy/SciPy release the GIL for the heavy arithmetic).
+        results = Parallel(n_jobs=-1, prefer="threads")(
+            delayed(self.metric_fun)(x) for x in X
+        )
+        return np.stack(results, axis=0)

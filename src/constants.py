@@ -305,15 +305,21 @@ FSI_SCALE = {
 # https://www.tandfonline.com/doi/full/10.1080/14790718.2017.1350185
 _CONSTANTS_DIR = DATA_DIR / "constants"
 
-GERMANIC_INTELLIGABILITY = pd.read_csv(
-    _CONSTANTS_DIR / "germanic_intelligibility.csv", index_col=0
-)
-ROMANCE_INTELLIGABILITY = pd.read_csv(
-    _CONSTANTS_DIR / "romance_intelligibility.csv", index_col=0
-)
-SLAVIC_INTELLIGABILITY = pd.read_csv(
-    _CONSTANTS_DIR / "slavic_intelligibility.csv", index_col=0
-)
+try:
+    GERMANIC_INTELLIGABILITY = pd.read_csv(
+        _CONSTANTS_DIR / "germanic_intelligibility.csv", index_col=0
+    )
+    ROMANCE_INTELLIGABILITY = pd.read_csv(
+        _CONSTANTS_DIR / "romance_intelligibility.csv", index_col=0
+    )
+    SLAVIC_INTELLIGABILITY = pd.read_csv(
+        _CONSTANTS_DIR / "slavic_intelligibility.csv", index_col=0
+    )
+except FileNotFoundError as _e:
+    raise FileNotFoundError(
+        f"Missing intelligibility CSV ({_e}). "
+        f"Ensure {_CONSTANTS_DIR} exists in the project data directory."
+    ) from _e
 
 
 def get_lexical_distance():

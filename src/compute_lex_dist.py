@@ -1,12 +1,11 @@
 import csv
-import math
 import re
-import sys
+
+import langcodes
 from pycldf import Dataset
 
 # If you have any constants or external mappings:
 from constants import FSI_SCALE
-import langcodes
 
 
 ###############################################################################
@@ -207,7 +206,7 @@ def main():
                 language_iso2_map[lang["ID"]] = iso2
 
     # Confirm they're valid
-    valid_ids = {l["ID"] for l in dataset["LanguageTable"]}
+    valid_ids = {lang["ID"] for lang in dataset["LanguageTable"]}
     languages_of_interest = [lid for lid in languages_of_interest if lid in valid_ids]
 
     # ---------------------------------------------------------------------------

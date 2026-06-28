@@ -73,9 +73,6 @@ def main():
 
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(0.8)
-        torch.cuda.memory.set_per_process_memory_fraction(0.8)
-        torch.backends.cuda.enable_flash_sdp(True)
-        torch.backends.cuda.enable_mem_efficient_sdp(True)
 
     torch.set_float32_matmul_precision("high")
     torch._dynamo.config.capture_scalar_outputs = True
@@ -93,8 +90,6 @@ def main():
 
     output_path = Path(config.get_output_filename())
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    config.save(output_path.with_suffix(".json"))
-
     with open(output_path, "w+", encoding="utf-8") as f:
         config.print_config(file=f)
 
