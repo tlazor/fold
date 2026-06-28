@@ -9,6 +9,24 @@ supported-markers = [
 ]
 
 [[package]]
+name = "accelerate"
+version = "1.14.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub", marker = "sys_platform == 'linux'" },
+    { name = "numpy", marker = "sys_platform == 'linux'" },
+    { name = "packaging", marker = "sys_platform == 'linux'" },
+    { name = "psutil", marker = "sys_platform == 'linux'" },
+    { name = "pyyaml", marker = "sys_platform == 'linux'" },
+    { name = "safetensors", marker = "sys_platform == 'linux'" },
+    { name = "torch", marker = "sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8d/75/94cd5d389649578aca399e5aa822637eec18319a1dadc400ffe2f9a7493f/accelerate-1.14.0.tar.gz", hash = "sha256:41b9c4377a54e0b460a959b0defa1b736e4ca0a2373252d9a539964c2afe3c8d", size = 412167, upload-time = "2026-06-11T13:45:52.326Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a8/db/253133d7e7cb40d3af384bb2f5c0b4a2b7fdcffbc95c688cc67a20a3c103/accelerate-1.14.0-py3-none-any.whl", hash = "sha256:e94390c2863b873be18f623f9df48a0d8fe5eff13ea7f1a00092b0a7904888c6", size = 389246, upload-time = "2026-06-11T13:45:50.477Z" },
+]
+
+[[package]]
 name = "annotated-doc"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -285,9 +303,11 @@ name = "fold"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "accelerate", marker = "sys_platform == 'linux'" },
     { name = "cupy-cuda13x", marker = "sys_platform == 'linux'" },
     { name = "joblib", marker = "sys_platform == 'linux'" },
     { name = "langcodes", marker = "sys_platform == 'linux'" },
+    { name = "language-data", marker = "sys_platform == 'linux'" },
     { name = "levenshtein", marker = "sys_platform == 'linux'" },
     { name = "matplotlib", marker = "sys_platform == 'linux'" },
     { name = "numba", marker = "sys_platform == 'linux'" },
@@ -310,9 +330,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "accelerate" },
     { name = "cupy-cuda13x" },
     { name = "joblib", specifier = ">=1.4.2" },
     { name = "langcodes", specifier = ">=3.5.0" },
+    { name = "language-data" },
     { name = "levenshtein", specifier = ">=0.27.1" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "numba", specifier = ">=0.65.1" },
@@ -549,6 +571,18 @@ wheels = [
 ]
 
 [[package]]
+name = "language-data"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "marisa-trie", marker = "sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/61/50/2518b4d0805f4d1f10166837829ad0bd71dcee3ec33fa84aa8c0db23c13c/language_data-1.4.0.tar.gz", hash = "sha256:800e6457e7beda781c156e02d7707e38db2ded026472e07e2c055dc8446ee574", size = 5309660, upload-time = "2025-11-28T13:45:25.217Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ad/d1/68e2bcca94c9bbdc122a71e504e0b6a6c3e31541b1bad33fee0205996006/language_data-1.4.0-py3-none-any.whl", hash = "sha256:f741927c24ab14cbed2a57bc2bfe82b00cff266c427179597e8b14123364f084", size = 5572678, upload-time = "2025-11-28T13:45:23.381Z" },
+]
+
+[[package]]
 name = "language-tags"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -609,6 +643,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/6a/715a3a8d156ce42f29cf014706f5410c2ff3b02267774110fc23266409fe/lxml-6.1.1-cp313-cp313-musllinux_1_2_ppc64le.whl", hash = "sha256:aad9aa39483ed8ec44d6d2e59e5b98a0d80676ef0d92f44bfc374836111f62f5", size = 5635874, upload-time = "2026-05-18T19:18:51.914Z" },
     { url = "https://files.pythonhosted.org/packages/45/37/0544bc21dde2a88f3a17b504e6fc79c0e01d25a33c2f6079724e9e72b9c7/lxml-6.1.1-cp313-cp313-musllinux_1_2_riscv64.whl", hash = "sha256:d49514be2f28d895c38cf9d2b72d7b9a07d00314519f456c0b50b53cfcf4c785", size = 5223987, upload-time = "2026-05-18T19:18:59.715Z" },
     { url = "https://files.pythonhosted.org/packages/4d/f8/f6a5e8185bcb28c2befae3d31f8e3df3b811cb0f47746517a81279fcafe1/lxml-6.1.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:47402e62c52ff5988c1e8c6c63177f5708bccf48e366dea4e3dcf1e645e04947", size = 5250276, upload-time = "2026-05-18T19:19:03.834Z" },
+]
+
+[[package]]
+name = "marisa-trie"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/5d/e235921b5b74818cb65b557fa05cc6201c2c1612d4866ff75c835bcf808d/marisa_trie-1.4.1.tar.gz", hash = "sha256:44ce3bdbeb7c950d463e460184fc3e18702df9ef0edb826bac672fd789fb1d20", size = 261581, upload-time = "2026-04-08T07:17:52.991Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/41/6ae103ef7448320a7324f9866a253d595159ffe367c11e06baabb92ca4d2/marisa_trie-1.4.1-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:84ce9b69a0516a52169d28e27ea14f015f6daf467fc8cb661eb841565d728ccf", size = 1474539, upload-time = "2026-04-08T07:16:53.924Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/dc/cbb5e8416ff5d193847b0e838b0b525773af7b6f4e1e4a33728d1b097fcb/marisa_trie-1.4.1-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:eaa3db575cb757f98d2754bcab5e1e0b2a884dc611964ac2659be13b58ef32e8", size = 1501031, upload-time = "2026-04-08T07:16:55.554Z" },
+    { url = "https://files.pythonhosted.org/packages/88/5c/ed86ad8683237dff8cdeb117b3b0664005e05bc221535301621ed474857d/marisa_trie-1.4.1-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:71ab0be7b380d65871986d61839814153f55307ff593bac22109e65e804f07d4", size = 2397211, upload-time = "2026-04-08T07:16:57.199Z" },
+    { url = "https://files.pythonhosted.org/packages/49/a3/2596d55ee48ed15a4d0de5a9ebd27de49888a029ffa521717c282df63efc/marisa_trie-1.4.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:658f49e4e825b4e4257f53f455e214cd0e161ab326e569562cc8ff8f67a48506", size = 2498742, upload-time = "2026-04-08T07:16:58.779Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/0d/0ea5e7f0aaa11c29aadaf121b6de275a6807d9712ef28ea4a6025bcab2e4/marisa_trie-1.4.1-cp313-cp313t-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:cc68d4cdd7f1be60786888497f50c6fb8ad4f17bbec1d7accfc3fe69e725a329", size = 1542413, upload-time = "2026-04-08T07:17:06.247Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/a9/fe6aa360eba3178cd74796b5e0d6d07a1afabe5b09b54fa8c2aa693a53c8/marisa_trie-1.4.1-cp313-cp313t-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8e759fb722a16b7db6a5fcb2ffe8c2feabf4a6143b487d21388bc5c156a79e90", size = 1545503, upload-time = "2026-04-08T07:17:07.501Z" },
+    { url = "https://files.pythonhosted.org/packages/60/42/2d80e091d2b92f7175be488f554565d0e0a432b1d61c4804177e0ec9ecce/marisa_trie-1.4.1-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:0666b071851fff8b687bc6c0c899c7ce1cb6119399ed8c3c4f4526aca876a5e2", size = 2447028, upload-time = "2026-04-08T07:17:09.29Z" },
+    { url = "https://files.pythonhosted.org/packages/28/8b/f9cb7fab4a0053dd9caed573791ab292f8b890a31bd5f159ef21dbe40e63/marisa_trie-1.4.1-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:6e494d5e88da58695fa9e2efc222de808ebd36b306a2c7162256d00fb06e733e", size = 2536022, upload-time = "2026-04-08T07:17:11.222Z" },
 ]
 
 [[package]]
@@ -975,6 +1025,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
+name = "psutil"
+version = "7.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/aa/c6/d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/psutil-7.2.2.tar.gz", hash = "sha256:0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372", size = 493740, upload-time = "2026-01-28T18:14:54.428Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/37/d6/246513fbf9fa174af531f28412297dd05241d97a75911ac8febefa1a53c6/psutil-7.2.2-cp313-cp313t-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1a571f2330c966c62aeda00dd24620425d4b0cc86881c89861fbc04549e5dc63", size = 181476, upload-time = "2026-01-28T18:15:01.884Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/b5/9182c9af3836cca61696dabe4fd1304e17bc56cb62f17439e1154f225dd3/psutil-7.2.2-cp313-cp313t-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:917e891983ca3c1887b4ef36447b1e0873e70c933afc831c6b6da078ba474312", size = 184062, upload-time = "2026-01-28T18:15:04.436Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/70/5d8df3b09e25bce090399cf48e452d25c935ab72dad19406c77f4e828045/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9", size = 155560, upload-time = "2026-01-28T18:15:25.976Z" },
+    { url = "https://files.pythonhosted.org/packages/63/65/37648c0c158dc222aba51c089eb3bdfa238e621674dc42d48706e639204f/psutil-7.2.2-cp36-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b0726cecd84f9474419d67252add4ac0cd9811b04d61123054b9fb6f57df6e9e", size = 156997, upload-time = "2026-01-28T18:15:27.794Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/13/125093eadae863ce03c6ffdbae9929430d116a246ef69866dad94da3bfbc/psutil-7.2.2-cp36-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:fd04ef36b4a6d599bbdb225dd1d3f51e00105f6d48a28f006da7f9822f2606d8", size = 148972, upload-time = "2026-01-28T18:15:29.342Z" },
+    { url = "https://files.pythonhosted.org/packages/04/78/0acd37ca84ce3ddffaa92ef0f571e073faa6d8ff1f0559ab1272188ea2be/psutil-7.2.2-cp36-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:b58fabe35e80b264a4e3bb23e6b96f9e45a3df7fb7eed419ac0e5947c61e47cc", size = 148266, upload-time = "2026-01-28T18:15:31.597Z" },
 ]
 
 [[package]]

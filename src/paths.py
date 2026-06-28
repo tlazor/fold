@@ -15,6 +15,7 @@ CACHE_DIR = PROJECT_ROOT / ".cache"
 def auto_device():
     """Return the best available torch.device (lazy-imports torch)."""
     import torch  # noqa: PLC0415
+
     if torch.cuda.is_available():
         return torch.device("cuda")
     if torch.backends.mps.is_available():
@@ -30,15 +31,18 @@ def load_hf_model(model_cls, model_name: str, device):
     transformers version does not support FA2.
     """
     import torch  # noqa: PLC0415
+
     kwargs = {}
     if device.type == "cuda":
         dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-        kwargs["torch_dtype"] = dtype
+        kwargs["dtype"] = dtype
         try:
             import flash_attn  # noqa: F401, PLC0415
+
             kwargs["attn_implementation"] = "flash_attention_2"
         except ImportError:
             pass
+    kwargs["device_map"] = device if device.type == "cuda" else None
     try:
         return model_cls.from_pretrained(model_name, **kwargs)
     except (ImportError, ValueError):

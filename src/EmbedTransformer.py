@@ -1,49 +1,41 @@
-from sklearn.base import BaseEstimator, TransformerMixin
-
+import numpy as np
 import torch
 from torch import nn
-
+from joblib import Memory
+from rich.progress import track
+from sklearn.base import BaseEstimator, TransformerMixin
 from transformers import AutoModel
 
-from rich.progress import track
-
-from joblib import Memory
 from paths import CACHE_DIR, auto_device, load_hf_model
 
 memory = Memory(CACHE_DIR / "joblib", verbose=0)
 
 
 @memory.cache(ignore=["model"])
-def get_token_embeddings(
-    model: nn.Module, model_name: str, input_ids, attention_mask, layer
+def get_sample_embeddings(
+    model: nn.Module,
+    model_name: str,
+    all_input_ids,        # numpy (n_langs, seq_len)
+    all_attention_masks,  # numpy (n_langs, seq_len)
+    layer: int,
 ) -> torch.Tensor:
-    """
-    Compute the likelihood (probability) of each non-special token in `text`
-    by masking each token and querying the model for its probability.
-
-    Uses a chunked approach so it fits in ~8GB GPU memory more easily.
-
-    Args:
-        model: HuggingFace-like model (e.g. BERT)
-        input_ids, attention_mask
-    """
+    """Hidden-state embeddings for all languages in one sample, one batched pass."""
     device = next(model.parameters()).device
-
-    # joblib cant currently deterministically hash tensors (they contain metadata about storage)
-    input_ids = torch.from_numpy(input_ids).to(device)
-    attention_mask = torch.from_numpy(attention_mask).to(device)
+    ids_t = torch.from_numpy(all_input_ids).to(device)
+    masks_t = torch.from_numpy(all_attention_masks).to(device)
 
     with torch.no_grad():
-        hidden_state = model(
-            input_ids, attention_mask=attention_mask, output_hidden_states=True
-        ).hidden_states[layer]
-    return hidden_state.cpu()  # shape: [batch_size, seq_length, hidden_dim]
+        hidden = model(
+            ids_t,
+            attention_mask=masks_t,
+            output_hidden_states=True,
+        ).hidden_states[layer]  # (n_langs, seq_len, hidden_dim)
+
+    return hidden.cpu().float()  # float32 for numpy compatibility
 
 
 class EmbedTransformer(BaseEstimator, TransformerMixin):
-    def __init__(
-        self, model_name="bert-base-multilingual-cased", layer=12, device=None
-    ):
+    def __init__(self, model_name="bert-base-multilingual-cased", layer=12, device=None):
         self.model_name = model_name
         self.layer = layer
         self.device = device
@@ -56,29 +48,16 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
         model = load_hf_model(AutoModel, self.model_name, device)
         model.to(device)
         model.eval()
-        model = torch.compile(model)
 
         results = []
         for sample in track(X):
-            token_arrays = []
-            max_len = 0
-            for input_ids, attention_mask in sample:
-                last_hidden_state = get_token_embeddings(
-                    model, self.model_name, input_ids, attention_mask, self.layer
-                )
+            all_ids = np.vstack([ids for ids, _ in sample])     # (n_langs, seq_len)
+            all_masks = np.vstack([mask for _, mask in sample])  # (n_langs, seq_len)
 
-                token_arrays.append(last_hidden_state)
-                max_len = max(max_len, last_hidden_state.shape[1])
+            hidden = get_sample_embeddings(
+                model, self.model_name, all_ids, all_masks, self.layer
+            )  # (n_langs, seq_len, hidden_dim) float32
 
-            results.append(
-                torch.vstack(
-                    [
-                        torch.nn.functional.pad(t, (0, 0, 0, max_len - t.shape[1]))
-                        for t in token_arrays
-                    ]
-                )
-                .detach()
-                .numpy()
-            )
+            results.append(hidden.numpy())
 
         return results

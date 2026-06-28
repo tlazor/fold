@@ -3,7 +3,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-
     devices:
       - nvidia.com/gpu=all
     # deploy:
@@ -14,6 +13,7 @@ services:
     #           count: all
     #           capabilities: [gpu]
     volumes:
+      - ../src:/fold/src:z
       - ../data:/fold/data:ro,z
       - ../data/models:/fold/data/models:z
       - ../.cache:/fold/.cache:z

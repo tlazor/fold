@@ -21,6 +21,8 @@ dependencies = [
     "cupy-cuda13x",
     "joblib>=1.4.2",
     "langcodes>=3.5.0",
+    "language_data",
+    "accelerate",
     "levenshtein>=0.27.1",
     "matplotlib>=3.10.0",
     "numba>=0.65.1",
