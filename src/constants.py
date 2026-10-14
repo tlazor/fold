@@ -351,6 +351,10 @@ PHONETIC_SIMILARITY = pd.read_csv(
     DATA_DIR / "asjp_ldnd_distances_by_iso2.csv", header=0, index_col=0
 )
 
+from wals_similarity import get_wals_similarity  # noqa: E402
+
+WALS_SIMILARITY = get_wals_similarity()
+
 
 # Dictionary of language and wikisize
 language_wikisize = {

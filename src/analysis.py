@@ -159,12 +159,14 @@ def analyze_output(
     df_mut_int = get_overlap(xnli_df, get_full_mut_int(), "mut_int", symmetrical=False)
     df_lex_sim = get_overlap(xnli_df, constants.LEXICAL_SIMILARITY, "lex_sim")
     df_pho_sim = get_overlap(xnli_df, constants.PHONETIC_SIMILARITY, "pho_sim")
+    df_wals_sim = get_overlap(xnli_df, constants.WALS_SIMILARITY, "wals_sim")
 
     dataframes = {
         "mut_int": df_mut_int,
         "lex_sim": df_lex_sim,
         "fsi": df_fsi,
         "pho_sim": df_pho_sim,
+        "wals_sim": df_wals_sim,
     }
     results_long = calculate_correlations_new(dataframes)
     print(
