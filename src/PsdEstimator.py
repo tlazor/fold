@@ -24,7 +24,9 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
             interp_2d = interp1d(freqs, psd_2d, axis=1, fill_value="extrapolate")(
                 self._common_freqs
             )
-            return interp_2d.reshape(n_langs, n_dims, len(self._common_freqs)).transpose(0, 2, 1)
+            return interp_2d.reshape(
+                n_langs, n_dims, len(self._common_freqs)
+            ).transpose(0, 2, 1)
         interp_func = interp1d(freqs, psd, axis=1, fill_value="extrapolate")
         return interp_func(self._common_freqs)
 
@@ -52,4 +54,6 @@ class PsdEstimator(BaseEstimator, TransformerMixin):
             n_freqs = min(len(f) for f in all_freqs)
             self._common_freqs = np.linspace(min_freq, max_freq, n_freqs)
 
-        return np.array([self._aligned_psd(psd, freqs) for psd, freqs in zip(all_psds, all_freqs)])
+        return np.array(
+            [self._aligned_psd(psd, freqs) for psd, freqs in zip(all_psds, all_freqs)]
+        )

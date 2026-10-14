@@ -561,49 +561,49 @@ XLMR_SIZE_LOG = {k: math.log2(v) for k, v in XLMR_SIZE.items()}
 
 families = {
     # Indo-European → Germanic branch
-    "Germanic":      ["da", "de", "en", "nl", "no", "sv"],
+    "Germanic": ["da", "de", "en", "nl", "no", "sv"],
     # Indo-European → Romance branch (+ French-based Haitian Creole)
-    "Romance":       ["fr", "it", "pt", "ro", "es", "ht"],
+    "Romance": ["fr", "it", "pt", "ro", "es", "ht"],
     # Indo-European → Slavic branch
-    "Slavic":        ["bg", "cs", "mk", "pl", "ru", "sr", "sk", "sl", "uk"],
+    "Slavic": ["bg", "cs", "mk", "pl", "ru", "sr", "sk", "sl", "uk"],
     # Indo-European → Baltic branch
-    "Baltic":        ["lv", "lt"],
+    "Baltic": ["lv", "lt"],
     # Indo-European → Albanian branch
-    "Albanian":      ["sq"],
+    "Albanian": ["sq"],
     # Indo-European → Greek branch
-    "Greek":         ["el"],
+    "Greek": ["el"],
     # Indo-European → Armenian branch
-    "Armenian":      ["hy"],
+    "Armenian": ["hy"],
     # Indo-European → Indo-Aryan branch
-    "Indo-Aryan":    ["bn", "hi", "ne", "ur"],
+    "Indo-Aryan": ["bn", "hi", "ne", "ur"],
     # Indo-European → Iranian branch
-    "Iranian":       ["fa", "ku", "tg"],
+    "Iranian": ["fa", "ku", "tg"],
     # Uralic family
-    "Uralic":        ["et", "fi", "hu"],
+    "Uralic": ["et", "fi", "hu"],
     # Turkic family
-    "Turkic":        ["az", "kk", "ky", "tk", "tr", "uz"],
+    "Turkic": ["az", "kk", "ky", "tk", "tr", "uz"],
     # Kartvelian family
-    "Kartvelian":    ["ka"],
+    "Kartvelian": ["ka"],
     # Mongolic family
-    "Mongolic":      ["mn"],
+    "Mongolic": ["mn"],
     # Semitic family
-    "Semitic":       ["am", "ar", "he"],
+    "Semitic": ["am", "ar", "he"],
     # Niger-Congo → Bantu subgroup
-    "Bantu":         ["sw"],
+    "Bantu": ["sw"],
     # Austronesian → Malayo-Polynesian subgroup
-    "Austronesian":  ["id", "ms"],
+    "Austronesian": ["id", "ms"],
     # Austroasiatic family
     "Austroasiatic": ["km", "vi"],
     # Tai-Kadai family
-    "Tai-Kadai":     ["lo", "th"],
+    "Tai-Kadai": ["lo", "th"],
     # Sino-Tibetan → Sinitic subgroup
-    "Sinitic":       ["zh", "yue"],
+    "Sinitic": ["zh", "yue"],
     # Sino-Tibetan → Burmish subgroup
-    "Sino-Tibetan":  ["my"],
+    "Sino-Tibetan": ["my"],
     # Japonic family
-    "Japonic":       ["ja"],
+    "Japonic": ["ja"],
     # Koreanic family
-    "Koreanic":      ["ko"],
+    "Koreanic": ["ko"],
 }
 
 lang2family = {code: fam for fam, codes in families.items() for code in codes}

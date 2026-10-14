@@ -46,7 +46,9 @@ def _compute_chunk_size(
 
     vocab_size = model.config.vocab_size
     dtype_bytes = next(model.parameters()).element_size()
-    bytes_per_row = seq_len * vocab_size * dtype_bytes * 2  # 2x for attn/hidden overhead
+    bytes_per_row = (
+        seq_len * vocab_size * dtype_bytes * 2
+    )  # 2x for attn/hidden overhead
 
     return max(1, available // bytes_per_row)
 
@@ -84,8 +86,8 @@ def get_sample_likelihoods(
     mega_ids_parts = []
     mega_mask_parts = []
     lang_offsets: list[tuple[int, int]] = []
-    extract_pos_parts = []   # which seq position holds the masked logit for each row
-    orig_id_parts = []       # the original token id at that position
+    extract_pos_parts = []  # which seq position holds the masked logit for each row
+    orig_id_parts = []  # the original token id at that position
     offset = 0
 
     for lang_idx in range(n_langs):
@@ -104,10 +106,10 @@ def get_sample_likelihoods(
         extract_pos_parts.append(row_idx + 1)
         orig_id_parts.append(ids_t[lang_idx, 1 : n_t + 1])
 
-    mega_ids = torch.cat(mega_ids_parts, dim=0)          # (total_rows, seq_len)
-    mega_masks = torch.cat(mega_mask_parts, dim=0)        # (total_rows, seq_len)
-    extract_pos = torch.cat(extract_pos_parts, dim=0)     # (total_rows,)
-    orig_ids = torch.cat(orig_id_parts, dim=0)            # (total_rows,)
+    mega_ids = torch.cat(mega_ids_parts, dim=0)  # (total_rows, seq_len)
+    mega_masks = torch.cat(mega_mask_parts, dim=0)  # (total_rows, seq_len)
+    extract_pos = torch.cat(extract_pos_parts, dim=0)  # (total_rows,)
+    orig_ids = torch.cat(orig_id_parts, dim=0)  # (total_rows,)
 
     total_rows = mega_ids.shape[0]
     if total_rows == 0:
@@ -133,8 +135,8 @@ def get_sample_likelihoods(
                 tgt = orig_ids[start:end].to(device)
 
                 logit_at_mask = logits[chunk_idx, pos, :].float()  # (chunk, vocab_size)
-                log_probs = F.log_softmax(logit_at_mask, dim=-1)   # (chunk, vocab_size)
-                probs = log_probs[chunk_idx, tgt].exp()             # (chunk,)
+                log_probs = F.log_softmax(logit_at_mask, dim=-1)  # (chunk, vocab_size)
+                probs = log_probs[chunk_idx, tgt].exp()  # (chunk,)
 
                 prob_chunks.append(probs.cpu())
                 start = end
@@ -146,10 +148,7 @@ def get_sample_likelihoods(
 
     all_probs = torch.cat(prob_chunks, dim=0)  # (total_rows,)
 
-    return [
-        all_probs[start_row : start_row + n_t]
-        for start_row, n_t in lang_offsets
-    ]
+    return [all_probs[start_row : start_row + n_t] for start_row, n_t in lang_offsets]
 
 
 class LikelihoodEstimator(BaseEstimator, TransformerMixin):

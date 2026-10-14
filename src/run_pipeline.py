@@ -43,9 +43,15 @@ def _build_data_components(config, langs):
     if config.dataset == "bible":
         loader = ("load_bible", BibleTransformer(DATA_DIR / "aligned", langs=langs))
     elif config.dataset == "un6":
-        loader = ("load_un6", Un6Transformer(DATA_DIR / "6way", langs=langs, nrows=2000))
+        loader = (
+            "load_un6",
+            Un6Transformer(DATA_DIR / "6way", langs=langs, nrows=2000),
+        )
     else:
-        loader = ("load_tsv", TsvToDataFrame(DATA_DIR / "XNLI-15way" / "xnli.15way.orig.tsv"))
+        loader = (
+            "load_tsv",
+            TsvToDataFrame(DATA_DIR / "XNLI-15way" / "xnli.15way.orig.tsv"),
+        )
     return [
         loader,
         ("tokenize", TokenTransform(model_name=config.model_name)),
@@ -154,7 +160,9 @@ def main():
                     if layer is not None:
                         print(f"{layer=}", file=f)
                     analyze_output(
-                        output, langs, f=f,
+                        output,
+                        langs,
+                        f=f,
                         model_name=config.model_name,
                         flag_analyze_pearson_contrib=config.analyze_pearson_contrib,
                     )

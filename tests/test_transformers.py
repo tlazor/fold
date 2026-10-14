@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from SampleTokens import SampleTokens
 from NoOpTransformer import NoOpTransformer
 
@@ -17,6 +16,7 @@ def _make_sample(n_langs: int, n_tokens: int, n_valid: list):
 # ===========================================================================
 # SampleTokens
 # ===========================================================================
+
 
 class TestSampleTokens:
     N_LANGS = 2
@@ -65,6 +65,7 @@ class TestSampleTokens:
 # NoOpTransformer
 # (zero-pads arrays to uniform length along axis 1, not a true identity)
 # ===========================================================================
+
 
 class TestNoOpTransformer:
     def test_same_length_output_equals_input(self):

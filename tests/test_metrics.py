@@ -10,6 +10,7 @@ from MetricTransformer import (
 try:
     import cupy as _cupy
     import cupyx.scipy.signal  # noqa: F401
+
     _cupy.array([1.0])  # trigger actual CUDA initialisation
     _CUPY_AVAILABLE = True
 except Exception:
@@ -19,6 +20,7 @@ except Exception:
 # ===========================================================================
 # compute_overlaps
 # ===========================================================================
+
 
 class TestComputeOverlaps2D:
     def test_shape(self, freq_2d):
@@ -32,23 +34,19 @@ class TestComputeOverlaps2D:
         assert np.all(compute_overlaps(freq_2d) >= 0)
 
     def test_diagonal_equals_row_sum(self):
-        P = np.array([[0.5, 0.3, 0.2],
-                      [0.1, 0.6, 0.3],
-                      [0.4, 0.4, 0.2]])
+        P = np.array([[0.5, 0.3, 0.2], [0.1, 0.6, 0.3], [0.4, 0.4, 0.2]])
         M = compute_overlaps(P)
         for i in range(3):
             np.testing.assert_allclose(M[i, i], P[i].sum(), rtol=1e-14)
 
     def test_identical_rows_give_max_overlap(self):
-        P = np.array([[0.5, 0.3, 0.2],
-                      [0.5, 0.3, 0.2]])
+        P = np.array([[0.5, 0.3, 0.2], [0.5, 0.3, 0.2]])
         M = compute_overlaps(P)
         np.testing.assert_allclose(M[0, 1], M[0, 0], rtol=1e-14)
         np.testing.assert_allclose(M[0, 1], M[1, 1], rtol=1e-14)
 
     def test_disjoint_distributions_zero_overlap(self):
-        P = np.array([[1.0, 0.0, 0.0, 0.0],
-                      [0.0, 0.0, 0.0, 1.0]])
+        P = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
         M = compute_overlaps(P)
         assert M[0, 1] == 0.0
 
@@ -77,6 +75,7 @@ class TestComputeOverlaps3D:
 # kl_divergence_matrix
 # ===========================================================================
 
+
 class TestKLDivergence2D:
     def test_shape(self, freq_2d):
         assert kl_divergence_matrix(freq_2d).shape == (3, 3)
@@ -86,16 +85,14 @@ class TestKLDivergence2D:
         np.testing.assert_allclose(np.diag(M), 0.0, atol=1e-10)
 
     def test_nonneg(self):
-        P = np.array([[0.5, 0.3, 0.2],
-                      [0.2, 0.5, 0.3]])
+        P = np.array([[0.5, 0.3, 0.2], [0.2, 0.5, 0.3]])
         M = kl_divergence_matrix(P)
         assert np.all(M >= -1e-12)
 
     def test_asymmetric(self):
         # KL(P||Q) ≠ KL(Q||P) for these distributions.
         # KL(P||Q) ≈ 1.40, KL(Q||P) ≈ 1.29 — verified analytically.
-        P = np.array([[0.8, 0.1, 0.1],
-                      [0.1, 0.2, 0.7]])
+        P = np.array([[0.8, 0.1, 0.1], [0.1, 0.2, 0.7]])
         M = kl_divergence_matrix(P)
         assert abs(M[0, 1] - M[1, 0]) > 1e-4
 
@@ -112,6 +109,7 @@ class TestKLDivergence3D:
 # ===========================================================================
 # mae_matrix
 # ===========================================================================
+
 
 class TestMAEMatrix2D:
     def test_shape(self, freq_2d):
@@ -131,8 +129,7 @@ class TestMAEMatrix2D:
     def test_known_value(self):
         # Both rows already sum to 1 so normalization is a no-op.
         # MAE[0,1] = mean(|0.5-0.3|, |0.5-0.7|) = mean(0.2, 0.2) = 0.2
-        P = np.array([[0.5, 0.5],
-                      [0.3, 0.7]])
+        P = np.array([[0.5, 0.5], [0.3, 0.7]])
         M = mae_matrix(P)
         np.testing.assert_allclose(M[0, 1], 0.2, rtol=1e-10)
 
@@ -154,6 +151,7 @@ class TestMAEMatrix3D:
 # ===========================================================================
 # coherence_matrix (2-D only in CPU tests)
 # ===========================================================================
+
 
 class TestCoherenceMatrix2D:
     def _signals(self, seed=0):
@@ -177,16 +175,20 @@ class TestCoherenceMatrix2D:
         np.testing.assert_allclose(M, M.T, atol=1e-12)
 
     def test_freq_band_filter(self):
-        M = coherence_matrix(self._signals(seed=3), fs=1.0, nperseg=10,
-                             freq_band=(0.2, 0.8))
+        M = coherence_matrix(
+            self._signals(seed=3), fs=1.0, nperseg=10, freq_band=(0.2, 0.8)
+        )
         assert M.shape == (3, 3)
         assert np.all(M >= -1e-12)
         assert np.all(M <= 1.0 + 1e-10)
 
 
-@pytest.mark.skipif(not _CUPY_AVAILABLE, reason="3-D coherence branch requires CuPy / CUDA")
+@pytest.mark.skipif(
+    not _CUPY_AVAILABLE, reason="3-D coherence branch requires CuPy / CUDA"
+)
 class TestCoherenceMatrix3D:
     def test_shape(self, freq_3d):
         import cupy as cp
+
         M = coherence_matrix(cp.asarray(freq_3d), fs=1.0, nperseg=4)
         assert M.shape == (3, 3)

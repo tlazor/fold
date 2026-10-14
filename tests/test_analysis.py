@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 
 from analysis import get_overlap, calculate_correlations_new
 
@@ -14,6 +13,7 @@ def _make_df(langs, seed=0):
 # ===========================================================================
 # get_overlap
 # ===========================================================================
+
 
 class TestGetOverlap:
     def test_column_names(self):
@@ -66,6 +66,7 @@ class TestGetOverlap:
 # calculate_correlations_new
 # ===========================================================================
 
+
 class TestCalculateCorrelationsNew:
     def test_perfectly_positive_correlation(self):
         x = np.arange(1, 11, dtype=float)
@@ -84,10 +85,12 @@ class TestCalculateCorrelationsNew:
         # x=[1,2,3,4,5], y=[1,-1,1,-1,1]
         # (x - mean_x) = [-2,-1,0,1,2], (y - mean_y) = [0.8,-1.2,0.8,-1.2,0.8]
         # dot product = -1.6 + 1.2 + 0 - 1.2 + 1.6 = 0 exactly
-        df = pd.DataFrame({
-            "fold":   [1.0,  2.0, 3.0,  4.0, 5.0],
-            "metric": [1.0, -1.0, 1.0, -1.0, 1.0],
-        })
+        df = pd.DataFrame(
+            {
+                "fold": [1.0, 2.0, 3.0, 4.0, 5.0],
+                "metric": [1.0, -1.0, 1.0, -1.0, 1.0],
+            }
+        )
         result = calculate_correlations_new({"d": df})
         assert abs(result.iloc[0]["p_coef"]) < 1e-10
 

@@ -1,5 +1,4 @@
 from pathlib import Path
-import pytest
 from TsvToDataFrame import TsvToDataFrame
 from BibleTransformer import BibleTransformer
 from Un6Transformer import Un6Transformer
@@ -7,6 +6,7 @@ from Un6Transformer import Un6Transformer
 # ===========================================================================
 # TsvToDataFrame
 # ===========================================================================
+
 
 class TestTsvToDataFrame:
     def test_shape(self, tmp_path):
@@ -39,6 +39,7 @@ class TestTsvToDataFrame:
 # BibleTransformer
 # ===========================================================================
 
+
 class TestBibleTransformer:
     def _make_book(self, root: Path, book_name: str, lines: list):
         d = root / book_name
@@ -68,6 +69,7 @@ class TestBibleTransformer:
 # Un6Transformer
 # ===========================================================================
 
+
 class TestUn6Transformer:
     def _write(self, root: Path, lang: str, lines: list):
         (root / f"UNv1.0.6way.{lang}").write_text("\n".join(lines), encoding="utf-8")
@@ -88,7 +90,9 @@ class TestUn6Transformer:
     def test_nrows_truncation(self, tmp_path):
         for lang in ["en", "fr"]:
             self._write(tmp_path, lang, [str(i) for i in range(10)])
-        df = Un6Transformer(file_path=tmp_path, langs=["en", "fr"], nrows=4).transform(None)
+        df = Un6Transformer(file_path=tmp_path, langs=["en", "fr"], nrows=4).transform(
+            None
+        )
         assert df.shape[0] == 4
 
     def test_fit_returns_self(self, tmp_path):

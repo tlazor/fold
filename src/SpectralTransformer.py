@@ -89,7 +89,9 @@ class SpectralTransformer(BaseEstimator, TransformerMixin):
         out = []
         for power, freqs in zip(all_power, all_freqs):
             if power.shape[1] != n_common:
-                power = interp1d(freqs, power, axis=1, fill_value="extrapolate")(common_freqs)
+                power = interp1d(freqs, power, axis=1, fill_value="extrapolate")(
+                    common_freqs
+                )
             out.append(power)
 
         return out

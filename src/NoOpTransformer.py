@@ -13,9 +13,9 @@ class NoOpTransformer(BaseEstimator, TransformerMixin):
         return [
             np.pad(
                 x,
-                pad_width=[(0, 0)]                     # axis 0 — keep as-is
-                        + [(0, max_len - x.shape[1])]  # axis 1 — pad on the right
-                        + [(0, 0)] * (x.ndim - 2),     # any remaining axes — keep as-is
+                pad_width=[(0, 0)]  # axis 0 — keep as-is
+                + [(0, max_len - x.shape[1])]  # axis 1 — pad on the right
+                + [(0, 0)] * (x.ndim - 2),  # any remaining axes — keep as-is
                 mode="constant",
                 constant_values=0,
             )

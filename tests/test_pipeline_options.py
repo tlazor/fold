@@ -9,6 +9,7 @@ from pipeline_options import PipelineOptions
 # Default construction
 # ===========================================================================
 
+
 class TestDefaults:
     def test_dataset_default(self):
         assert PipelineOptions().dataset == "xnli"
@@ -42,6 +43,7 @@ class TestDefaults:
 # Validation
 # ===========================================================================
 
+
 class TestValidation:
     def test_invalid_spectral_mode_raises(self):
         with pytest.raises(ValueError, match="spectral_mode"):
@@ -64,9 +66,12 @@ class TestValidation:
 # Derived properties
 # ===========================================================================
 
+
 class TestDerivedProperties:
     def test_model_name_bert(self):
-        assert PipelineOptions(model="bert").model_name == "bert-base-multilingual-cased"
+        assert (
+            PipelineOptions(model="bert").model_name == "bert-base-multilingual-cased"
+        )
 
     def test_model_name_xlmr(self):
         assert PipelineOptions(model="xlmr").model_name == "FacebookAI/xlm-roberta-base"
@@ -99,16 +104,21 @@ class TestDerivedProperties:
 # Output filenames
 # ===========================================================================
 
+
 class TestOutputFilenames:
     def test_likelihood_filename(self):
-        name = PipelineOptions(dataset="bible", model="bert").get_output_filename("likelihood")
+        name = PipelineOptions(dataset="bible", model="bert").get_output_filename(
+            "likelihood"
+        )
         assert "bible" in name
         assert "bert" in name
         assert "likelihood" in name
         assert name.endswith(".txt")
 
     def test_embedding_filename(self):
-        name = PipelineOptions(dataset="un6", model="xlmr").get_output_filename("embedding")
+        name = PipelineOptions(dataset="un6", model="xlmr").get_output_filename(
+            "embedding"
+        )
         assert "un6" in name
         assert "xlmr" in name
         assert "embedding" in name
@@ -131,6 +141,7 @@ class TestOutputFilenames:
 # Frequency bands
 # ===========================================================================
 
+
 class TestFreqBands:
     def test_single_band(self):
         bands = PipelineOptions(num_bands=1).freq_bands
@@ -141,7 +152,6 @@ class TestFreqBands:
         assert len(bands) == 4
 
     def test_multiple_bands_cover_full_range(self):
-        import numpy as np
         bands = PipelineOptions(num_bands=4).freq_bands
         assert bands[0][0] == pytest.approx(0.0)
         assert bands[-1][1] == pytest.approx(1.0)
@@ -156,17 +166,32 @@ class TestFreqBands:
 # Serialisation
 # ===========================================================================
 
+
 class TestSerialisation:
     def test_to_dict_has_required_keys(self):
         d = PipelineOptions().to_dict()
-        required = {"dataset", "model", "model_name", "signal_mode", "spectral_mode",
-                    "layers", "num_bands", "freq_bands",
-                    "analyze_pearson_contrib", "output_dir"}
+        required = {
+            "dataset",
+            "model",
+            "model_name",
+            "signal_mode",
+            "spectral_mode",
+            "layers",
+            "num_bands",
+            "freq_bands",
+            "analyze_pearson_contrib",
+            "output_dir",
+        }
         assert required.issubset(d.keys())
 
     def test_to_dict_values_match(self):
-        cfg = PipelineOptions(dataset="bible", model="xlmr", spectral_mode="fft",
-                              layers=[6, 12], num_bands=2)
+        cfg = PipelineOptions(
+            dataset="bible",
+            model="xlmr",
+            spectral_mode="fft",
+            layers=[6, 12],
+            num_bands=2,
+        )
         d = cfg.to_dict()
         assert d["dataset"] == "bible"
         assert d["model"] == "xlmr"
@@ -193,6 +218,7 @@ class TestSerialisation:
 # ===========================================================================
 # CLI parsing (from_args)
 # ===========================================================================
+
 
 class TestFromArgs:
     def test_defaults(self, monkeypatch):
@@ -245,12 +271,19 @@ class TestFromArgs:
         assert cfg.output_dir == tmp_path
 
     def test_combined_flags(self, monkeypatch):
-        monkeypatch.setattr(sys, "argv", [
-            "pipeline",
-            "--dataset", "un6",
-            "--model", "xlmr",
-            "--spectral-mode", "fft",
-        ])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "pipeline",
+                "--dataset",
+                "un6",
+                "--model",
+                "xlmr",
+                "--spectral-mode",
+                "fft",
+            ],
+        )
         cfg = PipelineOptions.from_args()
         assert cfg.dataset == "un6"
         assert cfg.model == "xlmr"

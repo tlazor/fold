@@ -15,7 +15,7 @@ memory = Memory(CACHE_DIR / "joblib", verbose=0)
 def get_sample_embeddings(
     model: nn.Module,
     model_name: str,
-    all_input_ids,        # numpy (n_langs, seq_len)
+    all_input_ids,  # numpy (n_langs, seq_len)
     all_attention_masks,  # numpy (n_langs, seq_len)
     layer: int,
 ) -> torch.Tensor:
@@ -35,7 +35,9 @@ def get_sample_embeddings(
 
 
 class EmbedTransformer(BaseEstimator, TransformerMixin):
-    def __init__(self, model_name="bert-base-multilingual-cased", layer=12, device=None):
+    def __init__(
+        self, model_name="bert-base-multilingual-cased", layer=12, device=None
+    ):
         self.model_name = model_name
         self.layer = layer
         self.device = device
@@ -51,7 +53,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
 
         results = []
         for sample in track(X):
-            all_ids = np.vstack([ids for ids, _ in sample])     # (n_langs, seq_len)
+            all_ids = np.vstack([ids for ids, _ in sample])  # (n_langs, seq_len)
             all_masks = np.vstack([mask for _, mask in sample])  # (n_langs, seq_len)
 
             hidden = get_sample_embeddings(

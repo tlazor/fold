@@ -75,7 +75,9 @@ def compute_overlaps(freq_spectra):
         if _NUMBA_AVAILABLE:
             try:
                 # Avoids allocating the large (L, L, F, D) intermediate array.
-                overlap_matrix = _overlap_3d_nb(np.ascontiguousarray(freq_spectra, dtype=np.float64))
+                overlap_matrix = _overlap_3d_nb(
+                    np.ascontiguousarray(freq_spectra, dtype=np.float64)
+                )
             except Exception:
                 pairwise_mins = np.minimum(
                     freq_spectra[:, np.newaxis, :, :],
@@ -127,15 +129,15 @@ def kl_divergence_matrix(P, epsilon=1e-15):
         # 1) Soft-max   — convert logits -> probabilities in a stable way
         #    subtract max over last axis for numerical stability
         P_shift = P - P.max(axis=-1, keepdims=True)
-        expP    = np.exp(P_shift)
-        Z       = expP.sum(axis=-1, keepdims=True)           # partition function
-        P_norm  = expP / (Z + epsilon)                       # shape (L, T, S)
+        expP = np.exp(P_shift)
+        Z = expP.sum(axis=-1, keepdims=True)  # partition function
+        P_norm = expP / (Z + epsilon)  # shape (L, T, S)
 
         # 2) log(P_norm)
-        LP = np.log(P_norm + epsilon)                        # shape (L, T, S)
+        LP = np.log(P_norm + epsilon)  # shape (L, T, S)
 
         # 3) α[i, t] = Σ_x  p[i,t,x] log p[i,t,x]
-        alpha = np.sum(P_norm * LP, axis=-1)                 # shape (L, T)
+        alpha = np.sum(P_norm * LP, axis=-1)  # shape (L, T)
 
         # 4) β[i, j, t] = Σ_x  p[i,t,x] log p[j,t,x]
         if _NUMBA_AVAILABLE:
@@ -150,10 +152,10 @@ def kl_divergence_matrix(P, epsilon=1e-15):
             beta = np.einsum("lts,Lts->lLt", P_norm, LP)  # shape (L, L, T)
 
         # 5) KL[i, j, t] = α[i,t] − β[i,j,t]
-        KL_per_token = alpha[:, None, :] - beta              # shape (L, L, T)
+        KL_per_token = alpha[:, None, :] - beta  # shape (L, L, T)
 
         # Option A: mean over tokens (default)
-        KL = KL_per_token.mean(axis=-1)                      # shape (L, L)
+        KL = KL_per_token.mean(axis=-1)  # shape (L, L)
         # Option B: sum over tokens → use .sum(axis=-1)
 
         return KL

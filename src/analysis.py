@@ -132,7 +132,9 @@ def star_fmt(p: float) -> str:
 formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
 
 
-def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False):
+def analyze_output(
+    output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False
+):
     if "en" not in langs:
         raise ValueError(
             f"English ('en') must be present in langs for FSI correlation; got {langs}"
@@ -177,7 +179,9 @@ def analyze_output(output, langs, f=None, model_name=None, flag_analyze_pearson_
 
 def analyze_pearson_contrib(results_long, model_name):
     if "pearson_contrib" not in results_long.columns:
-        print("analyze_pearson_contrib: no correlations computed (results_long is empty); skipping")
+        print(
+            "analyze_pearson_contrib: no correlations computed (results_long is empty); skipping"
+        )
         return
     df = results_long["pearson_contrib"]
 
@@ -243,7 +247,9 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
     fig_height = np.clip(rows * 0.40 + 1.5, 2, 12)
     fig_width = 10
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    im = ax.imshow(matrix, cmap="coolwarm", norm=norm, interpolation="nearest", aspect="auto")
+    im = ax.imshow(
+        matrix, cmap="coolwarm", norm=norm, interpolation="nearest", aspect="auto"
+    )
     fig.colorbar(im, ax=ax, label="Score")
 
     ax.set_xticks(np.arange(len(ordered_cols)))
@@ -270,8 +276,17 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
 
     trans_left = mtransforms.blended_transform_factory(ax.transAxes, ax.transData)
     left_texts = [
-        ax.text(-0.05, y, fam, transform=trans_left,
-                ha="right", va="center", fontsize=10, weight="bold", clip_on=False)
+        ax.text(
+            -0.05,
+            y,
+            fam,
+            transform=trans_left,
+            ha="right",
+            va="center",
+            fontsize=10,
+            weight="bold",
+            clip_on=False,
+        )
         for y, fam in zip(row_centres, row_families)
     ]
 
@@ -288,11 +303,19 @@ def plot_pearson_contrib(matrix, metric_name, results_long, index):
 
     trans_bottom = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
     bottom_texts = [
-        ax.text(x, bottom_offset, fam,
-                transform=trans_bottom,
-                ha="right", va="top",
-                rotation=45, rotation_mode="anchor",
-                fontsize=10, weight="bold", clip_on=False)
+        ax.text(
+            x,
+            bottom_offset,
+            fam,
+            transform=trans_bottom,
+            ha="right",
+            va="top",
+            rotation=45,
+            rotation_mode="anchor",
+            fontsize=10,
+            weight="bold",
+            clip_on=False,
+        )
         for x, fam in zip(col_centres, col_families)
     ]
 
@@ -342,15 +365,17 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
             lang1_size = size_map[lang1]
             lang2_size = size_map[lang2]
 
-            rows.append({
-                "lang1_size": lang1_size,
-                "lang2_size": lang2_size,
-                "pearson_contrib": matrix.loc[lang1, lang2],
-                "min_size": min(lang1_size, lang2_size),
-                "max_size": max(lang1_size, lang2_size),
-                "mean_size": (lang1_size + lang2_size) / 2,
-                "diff_size": abs(lang1_size - lang2_size),
-            })
+            rows.append(
+                {
+                    "lang1_size": lang1_size,
+                    "lang2_size": lang2_size,
+                    "pearson_contrib": matrix.loc[lang1, lang2],
+                    "min_size": min(lang1_size, lang2_size),
+                    "max_size": max(lang1_size, lang2_size),
+                    "mean_size": (lang1_size + lang2_size) / 2,
+                    "diff_size": abs(lang1_size - lang2_size),
+                }
+            )
 
     size_df = pd.DataFrame(rows, index=[index] * len(rows))
 
@@ -383,12 +408,14 @@ def analyze_wikisize(matrix, metric_name, index, model_name):
             lang1_size = size_map[lang1]
             lang2_size = size_map[lang2]
 
-            en_rows.append({
-                "lang1_size": lang1_size,
-                "lang2_size": lang2_size,
-                "pearson_contrib": matrix.loc[lang1, lang2],
-                "min_size": min(lang1_size, lang2_size),
-            })
+            en_rows.append(
+                {
+                    "lang1_size": lang1_size,
+                    "lang2_size": lang2_size,
+                    "pearson_contrib": matrix.loc[lang1, lang2],
+                    "min_size": min(lang1_size, lang2_size),
+                }
+            )
 
     size_df = pd.DataFrame(en_rows, index=[index] * len(en_rows))
 
@@ -496,9 +523,13 @@ def get_langs(dataset="xnli", use_bert=True):
             if lang_2l is not None:
                 model_langs_2l.append(lang_2l)
             else:
-                print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}")
+                print(
+                    f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}"
+                )
         except LookupError as e:
-            print(f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}-{e}")
+            print(
+                f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}-{e}"
+            )
             continue
 
     filtered_langs = [lang for lang in langs if lang in model_langs_2l]
