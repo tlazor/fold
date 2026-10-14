@@ -174,10 +174,11 @@ class TestSerialisation:
         assert d["layers"] == [6, 12]
         assert len(d["freq_bands"]) == 2
 
-    def test_save_writes_valid_json(self, tmp_path):
+    def test_print_config_writes_valid_json(self, tmp_path):
         cfg = PipelineOptions(dataset="xnli", model="bert")
-        out = tmp_path / "config.json"
-        cfg.save(out)
+        out = tmp_path / "output.txt"
+        with open(out, "w") as f:
+            cfg.print_config(file=f)
         loaded = json.loads(out.read_text())
         assert loaded["dataset"] == "xnli"
         assert loaded["model"] == "bert"
