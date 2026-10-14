@@ -1,3 +1,4 @@
+import langcodes
 import numpy as np
 import pandas as pd
 
@@ -23,6 +24,14 @@ WALS_LANG_IDS = {
     "zh": "mnd",  # Mandarin
 }
 
+# Languages outside WALS_LANG_IDS that can't be found by ISO 639-3 code:
+# langcodes gives the macrolanguage "nep" where WALS lists Nepali as "npi",
+# and WALS merges Serbian into Serbian-Croatian ("hbs").
+_EXTRA_WALS_IDS = {
+    "ne": "nep",  # Nepali
+    "sr": "scr",  # Serbian-Croatian
+}
+
 _CORE_AREAS = [
     "Phonology",
     "Morphology",
@@ -39,6 +48,40 @@ _CORE_AREAS = [
 _MIN_FEATS_PER_AREA = 2
 # Minimum number of qualifying areas required to produce a non-NaN score.
 _MIN_AREAS = 3
+
+
+def get_wals_ids(langs: list[str]) -> dict[str, str]:
+    """Map pipeline language codes to WALS language IDs.
+
+    WALS uses its own IDs (German is "ger", not ISO 639-3 "deu"), and some ISO
+    codes collide with unrelated WALS IDs ("deu" is Deuri), so match on the
+    ISO639P3code column instead. Where several WALS entries share an ISO code
+    (dialect samples such as "German (Berlin)"), take the one with the most
+    coded features. WALS_LANG_IDS and _EXTRA_WALS_IDS take precedence.
+    Languages with no WALS entry are omitted.
+    """
+    languages = pd.read_csv(_WALS_DIR / "languages.csv", usecols=["ID", "ISO639P3code"])
+    values = pd.read_csv(_WALS_DIR / "values.csv", usecols=["Language_ID"])
+    languages["n_feats"] = (
+        languages["ID"].map(values["Language_ID"].value_counts()).fillna(0)
+    )
+    best_by_iso = (
+        languages.dropna(subset=["ISO639P3code"])
+        .sort_values("n_feats", ascending=False, kind="stable")
+        .drop_duplicates("ISO639P3code")
+        .set_index("ISO639P3code")["ID"]
+    )
+
+    curated = {**WALS_LANG_IDS, **_EXTRA_WALS_IDS}
+    wals_ids = {}
+    for lang in langs:
+        if lang in curated:
+            wals_ids[lang] = curated[lang]
+            continue
+        iso3 = langcodes.Language.get(lang).to_alpha3()
+        if iso3 in best_by_iso.index:
+            wals_ids[lang] = best_by_iso[iso3]
+    return wals_ids
 
 
 def _load_param_to_area() -> dict[str, str]:

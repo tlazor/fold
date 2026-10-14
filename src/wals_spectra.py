@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-import langcodes
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -17,6 +16,7 @@ from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
 from SampleTokens import SampleTokens
 from TokenTransform import TokenTransform
+from wals_similarity import get_wals_ids
 
 
 def load_wals_feature(feature_id):
@@ -37,17 +37,22 @@ def load_wals_feature(feature_id):
 
 
 def get_langs_with_wals_feature(feature_id):
-    """Get list of languages that have the specified WALS feature."""
-    lang_to_value = load_wals_feature(feature_id)
-    print(f"{len(lang_to_value)=}")
+    """Get list of languages that have the specified WALS feature.
 
-    langs = [
-        lang
-        for lang in get_langs(dataset="bible", use_bert=True)
-        if langcodes.Language.get(lang).to_alpha3() in lang_to_value
-    ]
+    Returns the sorted pipeline language codes and a mapping from each one to
+    its WALS value for the feature.
+    """
+    wals_values = load_wals_feature(feature_id)
+    print(f"{len(wals_values)=}")
 
-    langs.sort()
+    wals_ids = get_wals_ids(get_langs(dataset="bible", use_bert=True))
+    lang_to_value = {
+        lang: wals_values[wals_id]
+        for lang, wals_id in wals_ids.items()
+        if wals_id in wals_values
+    }
+
+    langs = sorted(lang_to_value)
     return langs, lang_to_value
 
 
@@ -71,9 +76,8 @@ def analyze_spectra_by_feature_value(
     # Group languages by their feature values
     value_groups = defaultdict(list)
     for lang in langs:
-        alpha3 = langcodes.Language.get(lang).to_alpha3()
-        if alpha3 in lang_to_value:
-            value_groups[lang_to_value[alpha3]].append(lang)
+        if lang in lang_to_value:
+            value_groups[lang_to_value[lang]].append(lang)
 
     # For each feature value group
     avg_spectra = {}
