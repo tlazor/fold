@@ -1,10 +1,13 @@
 import numpy as np
 import pytest
+from scipy.signal import coherence
 from MetricTransformer import (
     compute_overlaps,
     kl_divergence_matrix,
     mae_matrix,
+    coherence_band_means,
     coherence_matrix,
+    coherence_spectra,
 )
 
 try:
@@ -181,6 +184,46 @@ class TestCoherenceMatrix2D:
         assert M.shape == (3, 3)
         assert np.all(M >= -1e-12)
         assert np.all(M <= 1.0 + 1e-10)
+
+
+def _scipy_coherence_matrix(P, nperseg, freq_band=None):
+    """Reference: scipy coherence for every pair, along the token axis."""
+    L = P.shape[0]
+    M = np.zeros((L, L))
+    for i in range(L):
+        for j in range(L):
+            f, Cxy = coherence(P[i], P[j], nperseg=nperseg, axis=0)
+            if freq_band is not None:
+                Cxy = Cxy[(f >= freq_band[0] / 2) & (f <= freq_band[1] / 2)]
+            M[i, j] = Cxy.mean()
+    return M
+
+
+class TestCoherenceMatchesScipy:
+    @pytest.mark.parametrize("nperseg", [10, 9, None])
+    @pytest.mark.parametrize("freq_band", [None, (0.2, 0.8)])
+    def test_2d(self, nperseg, freq_band):
+        P = np.random.default_rng(0).random((4, 30))
+        M = coherence_matrix(P, nperseg=nperseg, freq_band=freq_band)
+        expected = _scipy_coherence_matrix(P, nperseg, freq_band)
+        np.testing.assert_allclose(M, expected, rtol=1e-10)
+
+    @pytest.mark.parametrize("nperseg", [8, 7])
+    def test_3d_numpy(self, nperseg):
+        P = np.random.default_rng(1).random((3, 24, 5))  # (langs, tokens, hidden)
+        _, coh = coherence_spectra(P, nperseg=nperseg, xp=np)
+        np.testing.assert_allclose(
+            coh.mean(axis=-1), _scipy_coherence_matrix(P, nperseg), rtol=1e-10
+        )
+
+    def test_band_means_match_per_band_calls(self):
+        P = np.random.default_rng(2).random((3, 40))
+        bands = [(0.0, 0.5), (0.5, 1.0), None]
+        freqs, coh = coherence_spectra(P, nperseg=10)
+        for band, M in zip(bands, coherence_band_means(freqs, coh, bands)):
+            np.testing.assert_allclose(
+                M, coherence_matrix(P, nperseg=10, freq_band=band), rtol=1e-12
+            )
 
 
 @pytest.mark.skipif(
