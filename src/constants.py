@@ -1,9 +1,6 @@
 import math
 import pandas as pd
 
-import languages
-from paths import DATA_DIR
-
 BERT_MULTILINGUAL_LANGS = [
     "Afrikaans",
     "Albanian",
@@ -300,52 +297,6 @@ FSI_SCALE = {
     "ja": 88,  # Japanese
     "ko": 88,  # Korean
 }
-
-# Mutual Intelligibility results from
-# https://www.tandfonline.com/doi/full/10.1080/14790718.2017.1350185
-_CONSTANTS_DIR = DATA_DIR / "constants"
-
-try:
-    GERMANIC_INTELLIGABILITY = pd.read_csv(
-        _CONSTANTS_DIR / "germanic_intelligibility.csv", index_col=0
-    )
-    ROMANCE_INTELLIGABILITY = pd.read_csv(
-        _CONSTANTS_DIR / "romance_intelligibility.csv", index_col=0
-    )
-    SLAVIC_INTELLIGABILITY = pd.read_csv(
-        _CONSTANTS_DIR / "slavic_intelligibility.csv", index_col=0
-    )
-except FileNotFoundError as _e:
-    raise FileNotFoundError(
-        f"Missing intelligibility CSV ({_e}). "
-        f"Ensure {_CONSTANTS_DIR} exists in the project data directory."
-    ) from _e
-
-
-def get_lexical_distance():
-    lex_sim = pd.read_excel(DATA_DIR / "lexical-distance-matrix.xlsx", skiprows=2)
-
-    # Drop the "branch" and "language" columns
-    lex_sim = lex_sim.drop(columns=["Unnamed: 0", "Unnamed: 1"])
-
-    # The spreadsheet's abbreviations aren't all ISO codes (Greek is "grk"),
-    # so map them through the registry; languages outside it are dropped.
-    code_by_abbr = languages.from_source_ids("lexdist_abbr")
-    lex_sim = lex_sim[lex_sim["Abreviation"].isin(code_by_abbr)]
-    lex_sim = lex_sim.set_index(lex_sim["Abreviation"].map(code_by_abbr))
-    return lex_sim[list(code_by_abbr)].rename(columns=code_by_abbr)
-
-
-LEXICAL_SIMILARITY = get_lexical_distance()
-
-PHONETIC_SIMILARITY = pd.read_csv(
-    DATA_DIR / "asjp_ldnd_distances_by_iso2.csv", header=0, index_col=0
-)
-
-from wals_similarity import get_wals_similarity  # noqa: E402
-
-WALS_SIMILARITY = get_wals_similarity(languages.source_ids("wals_id", XNLI_LANGUAGES))
-
 
 # Dictionary of language and wikisize
 language_wikisize = {

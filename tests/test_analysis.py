@@ -1,7 +1,9 @@
+import io
+
 import numpy as np
 import pandas as pd
 
-from analysis import get_langs, get_overlap, calculate_correlations_new
+from analysis import analyze_output, get_langs, get_overlap, calculate_correlations_new
 
 
 def _make_df(langs, seed=0):
@@ -147,3 +149,18 @@ class TestGetLangs:
         xlmr = set(get_langs("bible", use_bert=False))
         assert "am" not in bert and "am" in xlmr  # Amharic: XLM-R only
         assert "ht" in bert and "ht" not in xlmr  # Haitian: mBERT only
+
+
+# ===========================================================================
+# analyze_output
+# ===========================================================================
+
+
+class TestAnalyzeOutput:
+    def test_reports_every_baseline(self):
+        langs = ["de", "en", "es", "fr", "it", "nl", "pt", "ru"]
+        output = np.random.default_rng(0).random((5, len(langs), len(langs)))
+        buf = io.StringIO()
+        analyze_output(output, langs, f=buf)
+        for name in ["mut_int", "lex_dist", "pho_dist", "wals_sim", "fsi"]:
+            assert f"| {name} " in buf.getvalue()

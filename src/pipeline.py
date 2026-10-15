@@ -3,7 +3,6 @@
 from analysis import (  # noqa: F401
     show_heatmap,
     calculate_correlations_new,
-    get_full_mut_int,
     star_fmt,
     formatters,
     analyze_output,

@@ -101,39 +101,33 @@ def get_wals_similarity(lang_ids: dict[str, str]) -> pd.DataFrame:
     }
 
     n = len(wids)
+    score_sum = np.zeros((n, n))
+    n_areas = np.zeros((n, n), dtype=int)
+
+    # Every language pair at once: arrays below are (lang_a, lang_b, feature).
+    for feats in area_feats.values():
+        if not feats:
+            continue
+        a = feat_matrix[feats].to_numpy(dtype=float)
+        ic_a = np.column_stack(
+            [
+                feat_matrix[f].map(ic.get(f, {})).fillna(0.0).to_numpy(dtype=float)
+                for f in feats
+            ]
+        )
+        observed = ~np.isnan(a)
+        shared = observed[:, None, :] & observed[None, :, :]
+        # Weight by the combined IC of both languages' observed values.
+        # When they agree on rare value v: weight 2·IC(f,v) (high).
+        # When they agree on common value v: weight 2·IC(f,v) (low).
+        w = np.where(shared, ic_a[:, None, :] + ic_a[None, :, :], 0.0)
+        total_w = w.sum(axis=-1)
+        agree = a[:, None, :] == a[None, :, :]
+        qualifies = (shared.sum(axis=-1) >= _MIN_FEATS_PER_AREA) & (total_w > 0)
+        agreed_w = np.where(agree, w, 0.0).sum(axis=-1)
+        score_sum += np.divide(agreed_w, total_w, out=np.zeros((n, n)), where=qualifies)
+        n_areas += qualifies
+
     sim = np.full((n, n), np.nan)
-
-    for i, la in enumerate(wids):
-        for j, lb in enumerate(wids):
-            area_scores: list[float] = []
-            for area, feats in area_feats.items():
-                if not feats:
-                    continue
-                a = feat_matrix.loc[la, feats].to_numpy(dtype=float)
-                b = feat_matrix.loc[lb, feats].to_numpy(dtype=float)
-                shared_mask = ~np.isnan(a) & ~np.isnan(b)
-                if shared_mask.sum() < _MIN_FEATS_PER_AREA:
-                    continue
-                shared_feats = [feats[k] for k in np.where(shared_mask)[0]]
-                av = a[shared_mask]
-                bv = b[shared_mask]
-                # Weight by the combined IC of both languages' observed values.
-                # When they agree on rare value v: weight 2·IC(f,v) (high).
-                # When they agree on common value v: weight 2·IC(f,v) (low).
-                w = np.array(
-                    [
-                        ic.get(f, {}).get(float(va), 0.0)
-                        + ic.get(f, {}).get(float(vb), 0.0)
-                        for f, va, vb in zip(shared_feats, av, bv)
-                    ]
-                )
-                total_w = w.sum()
-                if total_w == 0:
-                    continue
-                agree = (av == bv).astype(float)
-                area_scores.append(float(np.dot(agree, w) / total_w))
-
-            if len(area_scores) >= _MIN_AREAS:
-                sim[i, j] = float(np.mean(area_scores))
-
+    np.divide(score_sum, n_areas, out=sim, where=n_areas >= _MIN_AREAS)
     return pd.DataFrame(sim, index=iso2, columns=iso2)

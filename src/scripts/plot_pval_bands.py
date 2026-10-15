@@ -7,7 +7,7 @@ from print_helper import save_fig
 
 def parse_band_data(filename):
     bands = []
-    metrics = ["fsi", "lex_sim", "mut_int", "pho_sim"]
+    metrics = ["fsi", "lex_dist", "mut_int", "pho_dist"]
     p_pvals = {metric: [] for metric in metrics}
     p_coefs = {metric: [] for metric in metrics}
     s_pvals = {metric: [] for metric in metrics}

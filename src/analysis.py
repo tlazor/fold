@@ -17,6 +17,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import baselines
 import constants
 import languages
 
@@ -94,28 +95,6 @@ def calculate_correlations_new(dataframes):
     return pd.DataFrame(all_correlations)
 
 
-def get_full_mut_int():
-    all_labels = (
-        constants.GERMANIC_INTELLIGABILITY.index.union(
-            constants.ROMANCE_INTELLIGABILITY.index
-        )
-        .union(constants.SLAVIC_INTELLIGABILITY.index)
-        .drop(["Mean", "Total"], errors="ignore")
-    )
-
-    df1_re = constants.GERMANIC_INTELLIGABILITY.reindex(
-        index=all_labels, columns=all_labels
-    )
-    df2_re = constants.ROMANCE_INTELLIGABILITY.reindex(
-        index=all_labels, columns=all_labels
-    )
-    df3_re = constants.SLAVIC_INTELLIGABILITY.reindex(
-        index=all_labels, columns=all_labels
-    )
-
-    return df1_re.combine_first(df2_re).combine_first(df3_re)
-
-
 def star_fmt(p: float) -> str:
     """Return p-value string with significance stars."""
     if p < 0.001:
@@ -146,27 +125,25 @@ def analyze_output(
         xnli_df.iloc[i, i] = np.nan
 
     en_source_distances = median_matrix[en_index]
-    df_fsi = pd.DataFrame(columns=["lang", "fsi", "fold"])
+    fsi = baselines.fsi()
+    df_fsi = pd.DataFrame(columns=["lang", "fold", "fsi"])
 
     for lang, fold_distance in zip(langs, en_source_distances):
         if lang == "en":
             continue
-        df_fsi.loc[len(df_fsi)] = [lang, constants.FSI_SCALE[lang], fold_distance]
+        df_fsi.loc[len(df_fsi)] = [lang, fold_distance, fsi[lang]]
 
     df_fsi.set_index("lang", inplace=True)
 
-    df_mut_int = get_overlap(xnli_df, get_full_mut_int(), "mut_int", symmetrical=False)
-    df_lex_sim = get_overlap(xnli_df, constants.LEXICAL_SIMILARITY, "lex_sim")
-    df_pho_sim = get_overlap(xnli_df, constants.PHONETIC_SIMILARITY, "pho_sim")
-    df_wals_sim = get_overlap(xnli_df, constants.WALS_SIMILARITY, "wals_sim")
-
+    # Pairwise baselines are named by what they measure (e.g. lex_dist is a
+    # distance), so read each correlation's sign against its baseline's kind.
     dataframes = {
-        "mut_int": df_mut_int,
-        "lex_sim": df_lex_sim,
-        "fsi": df_fsi,
-        "pho_sim": df_pho_sim,
-        "wals_sim": df_wals_sim,
+        baseline.name: get_overlap(
+            xnli_df, baseline.matrix, baseline.name, symmetrical=baseline.symmetric
+        )
+        for baseline in baselines.pairwise()
     }
+    dataframes["fsi"] = df_fsi
     results_long = calculate_correlations_new(dataframes)
     print(
         results_long.to_markdown(index=False, floatfmt=".3f", tablefmt="github"),
@@ -213,7 +190,7 @@ def analyze_pearson_contrib(results_long, model_name):
 
 
 def plot_pearson_contrib(matrix, metric_name, results_long, index):
-    if metric_name == "fold_en_row":
+    if metric_name == "fsi_en_row":
         print(f"{matrix.loc['en']=}")
         return
 

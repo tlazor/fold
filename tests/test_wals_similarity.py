@@ -52,3 +52,10 @@ def test_values_in_range(sim):
             v = sim.loc[lang_a, lang_b]
             if not math.isnan(v):
                 assert 0.0 <= v <= 1.0
+
+
+def test_matches_reference_values(sim):
+    # Values from the original per-pair loop implementation.
+    assert sim.loc["en", "de"] == pytest.approx(0.6179131631132291, abs=1e-12)
+    assert sim.loc["hi", "ur"] == pytest.approx(0.9553632678868924, abs=1e-12)
+    assert sim.loc["th", "vi"] == pytest.approx(0.7238712305255468, abs=1e-12)
