@@ -210,7 +210,9 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
     Parameters
     ----------
     P : np.ndarray
-        Input array of shape (num_langs, num_samples) or (num_langs, num_tokens, num_samples)
+        Input array of shape (num_langs, num_tokens) or (num_langs, num_tokens, hidden_dim).
+        Coherence is computed along the token axis; for 3-D input, separately for
+        each hidden dimension and then averaged.
     fs : float, optional
         Sampling frequency of the signals. Default is 1.0.
     nperseg : int, optional
@@ -253,20 +255,19 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
         import cupy as cp
         from cupyx.scipy.signal import coherence
 
-        num_langs, num_tokens, _ = P.shape
+        num_langs = P.shape[0]
         coherence_mat = cp.zeros((num_langs, num_langs))
 
-        # Process language pairs in parallel where possible
         for i in range(num_langs):
-            # Get all signals for language i
-            sigs_i = P[i]  # shape: (num_tokens, num_samples)
+            # One signal per hidden dimension, running over the tokens
+            sigs_i = P[i]  # shape: (num_tokens, hidden_dim)
 
             for j in range(num_langs):
-                # Get all signals for language j
-                sigs_j = P[j]  # shape: (num_tokens, num_samples)
+                sigs_j = P[j]  # shape: (num_tokens, hidden_dim)
 
-                # Calculate coherence for all token positions at once using cached function
-                f, Cxy = coherence(sigs_i, sigs_j, fs=fs, nperseg=nperseg)
+                # Coherence along the token axis (as for the PSD), for every
+                # hidden dimension at once
+                f, Cxy = coherence(sigs_i, sigs_j, fs=fs, nperseg=nperseg, axis=0)
 
                 # Filter frequency band if specified
                 if freq_band is not None:
@@ -274,14 +275,14 @@ def coherence_matrix(P, fs=1.0, nperseg=None, freq_band=None):
                     min_freq = freq_band[0] * nyquist
                     max_freq = freq_band[1] * nyquist
                     mask = (f >= min_freq) & (f <= max_freq)
-                    Cxy = Cxy[:, mask]
+                    Cxy = Cxy[mask, :]
 
-                # Cxy shape: (num_tokens, n_freqs)
-                # Take mean across frequencies for each token
-                token_coherences = cp.mean(Cxy, axis=1)  # shape: (num_tokens,)
+                # Cxy shape: (n_freqs, hidden_dim)
+                # Take mean across frequencies for each hidden dimension
+                dim_coherences = cp.mean(Cxy, axis=0)  # shape: (hidden_dim,)
 
-                # Take mean across all tokens
-                coherence_mat[i, j] = cp.mean(token_coherences)
+                # Take mean across all hidden dimensions
+                coherence_mat[i, j] = cp.mean(dim_coherences)
 
         return coherence_mat.get()
 

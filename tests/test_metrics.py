@@ -192,3 +192,25 @@ class TestCoherenceMatrix3D:
 
         M = coherence_matrix(cp.asarray(freq_3d), fs=1.0, nperseg=4)
         assert M.shape == (3, 3)
+
+    def test_matches_scipy_along_tokens(self, freq_3d):
+        import cupy as cp
+        from scipy.signal import coherence
+
+        M = coherence_matrix(cp.asarray(freq_3d), fs=1.0, nperseg=4)
+        for i in range(3):
+            for j in range(3):
+                _, Cxy = coherence(freq_3d[i], freq_3d[j], nperseg=4, axis=0)
+                np.testing.assert_allclose(M[i, j], Cxy.mean(), rtol=1e-6)
+
+    def test_scaled_hidden_dims_fully_coherent(self):
+        import cupy as cp
+
+        # Scaling each hidden dimension's token signal by a constant leaves
+        # coherence along the tokens at exactly 1; along the hidden dimensions
+        # (the old, wrong axis) it would not be.
+        rng = np.random.default_rng(0)
+        base = rng.random((16, 32))  # (tokens, hidden_dim); old axis gives ~0.74
+        P = np.stack([base, base * rng.uniform(0.5, 2.0, size=32)])
+        M = coherence_matrix(cp.asarray(P), fs=1.0, nperseg=8)
+        np.testing.assert_allclose(M[0, 1], 1.0, atol=1e-6)
