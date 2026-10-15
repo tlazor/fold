@@ -1,7 +1,7 @@
 import math
-import langcodes
 import pandas as pd
 
+import languages
 from paths import DATA_DIR
 
 BERT_MULTILINGUAL_LANGS = [
@@ -328,21 +328,12 @@ def get_lexical_distance():
     # Drop the "branch" and "language" columns
     lex_sim = lex_sim.drop(columns=["Unnamed: 0", "Unnamed: 1"])
 
-    def convert_3_to_2(letter3):
-        return langcodes.Language.get(letter3).language
-
-    lex_sim["abbr_2_letter"] = lex_sim["Abreviation"].apply(convert_3_to_2)
-
-    mapping_3_to_2 = dict(zip(lex_sim["Abreviation"], lex_sim["abbr_2_letter"]))
-
-    def rename_col(col):
-        return mapping_3_to_2[col] if col in mapping_3_to_2 else col
-
-    lex_sim = lex_sim.rename(columns=rename_col)
-    lex_sim = lex_sim.set_index("abbr_2_letter")
-    lex_sim = lex_sim.drop(columns=["Abreviation"])
-
-    return lex_sim
+    # The spreadsheet's abbreviations aren't all ISO codes (Greek is "grk"),
+    # so map them through the registry; languages outside it are dropped.
+    code_by_abbr = languages.from_source_ids("lexdist_abbr")
+    lex_sim = lex_sim[lex_sim["Abreviation"].isin(code_by_abbr)]
+    lex_sim = lex_sim.set_index(lex_sim["Abreviation"].map(code_by_abbr))
+    return lex_sim[list(code_by_abbr)].rename(columns=code_by_abbr)
 
 
 LEXICAL_SIMILARITY = get_lexical_distance()
@@ -353,7 +344,7 @@ PHONETIC_SIMILARITY = pd.read_csv(
 
 from wals_similarity import get_wals_similarity  # noqa: E402
 
-WALS_SIMILARITY = get_wals_similarity()
+WALS_SIMILARITY = get_wals_similarity(languages.source_ids("wals_id", XNLI_LANGUAGES))
 
 
 # Dictionary of language and wikisize

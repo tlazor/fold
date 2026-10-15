@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from analysis import get_overlap, calculate_correlations_new
+from analysis import get_langs, get_overlap, calculate_correlations_new
 
 
 def _make_df(langs, seed=0):
@@ -125,3 +125,25 @@ class TestCalculateCorrelationsNew:
         by_metric = result.set_index("metric")["p_coef"]
         assert by_metric["m1"] > 0.99
         assert by_metric["m2"] < -0.99
+
+
+# ===========================================================================
+# get_langs
+# ===========================================================================
+
+
+class TestGetLangs:
+    def test_xnli_all_supported(self):
+        assert len(get_langs("xnli", use_bert=True)) == 15
+        assert len(get_langs("xnli", use_bert=False)) == 15
+
+    def test_bible_includes_files_named_differently(self):
+        # Farsi.txt, Myanmar.txt and Creole.txt don't match langcodes' display
+        # names (Persian, Burmese, Haitian Creole).
+        assert {"fa", "my", "ht"} <= set(get_langs("bible", use_bert=True))
+
+    def test_bible_filters_by_model(self):
+        bert = set(get_langs("bible", use_bert=True))
+        xlmr = set(get_langs("bible", use_bert=False))
+        assert "am" not in bert and "am" in xlmr  # Amharic: XLM-R only
+        assert "ht" in bert and "ht" not in xlmr  # Haitian: mBERT only

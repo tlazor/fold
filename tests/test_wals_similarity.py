@@ -1,20 +1,22 @@
 import math
 import pytest
-from wals_similarity import get_wals_ids, get_wals_similarity, WALS_LANG_IDS
+import languages
+from constants import XNLI_LANGUAGES
+from wals_similarity import get_wals_similarity
 
 
 @pytest.fixture(scope="module")
 def sim():
-    return get_wals_similarity()
+    return get_wals_similarity(languages.source_ids("wals_id", XNLI_LANGUAGES))
 
 
 def test_shape(sim):
-    n = len(WALS_LANG_IDS)
+    n = len(XNLI_LANGUAGES)
     assert sim.shape == (n, n)
 
 
 def test_index_labels(sim):
-    expected = set(WALS_LANG_IDS.keys())
+    expected = set(XNLI_LANGUAGES)
     assert set(sim.index) == expected
     assert set(sim.columns) == expected
 
@@ -50,35 +52,3 @@ def test_values_in_range(sim):
             v = sim.loc[lang_a, lang_b]
             if not math.isnan(v):
                 assert 0.0 <= v <= 1.0
-
-
-def test_wals_ids_match_curated_mapping():
-    assert get_wals_ids(list(WALS_LANG_IDS)) == WALS_LANG_IDS
-
-
-def test_wals_ids_use_wals_codes_not_iso():
-    # ISO 639-3 codes either aren't WALS IDs (fra vs fre) or collide with
-    # unrelated WALS languages (deu is Deuri, dan is Dan, slv is Slavey).
-    assert get_wals_ids(["cs", "da", "de", "fr", "nl", "ro", "sl"]) == {
-        "cs": "cze",
-        "da": "dsh",
-        "de": "ger",
-        "fr": "fre",
-        "nl": "dut",
-        "ro": "rom",
-        "sl": "slo",
-    }
-
-
-def test_wals_ids_prefer_best_covered_dialect():
-    # e.g. Hebrew (Modern) over Hebrew (Modern Ashkenazic).
-    assert get_wals_ids(["he", "it", "sv"]) == {"he": "heb", "it": "ita", "sv": "swe"}
-
-
-def test_wals_ids_manual_overrides():
-    assert get_wals_ids(["ne", "sr"]) == {"ne": "nep", "sr": "scr"}
-
-
-def test_wals_ids_omit_languages_missing_from_wals():
-    # Corsican has no WALS entry.
-    assert get_wals_ids(["en", "co"]) == {"en": "eng"}

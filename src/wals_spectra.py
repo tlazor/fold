@@ -10,13 +10,13 @@ from sklearn.pipeline import Pipeline
 
 from analysis import get_langs
 from BibleTransformer import BibleTransformer
+import languages
 from LikelihoodEstimator import LikelihoodEstimator
 from pipeline_options import PipelineOptions
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
 from SampleTokens import SampleTokens
 from TokenTransform import TokenTransform
-from wals_similarity import get_wals_ids
 
 
 def load_wals_feature(feature_id):
@@ -45,7 +45,9 @@ def get_langs_with_wals_feature(feature_id):
     wals_values = load_wals_feature(feature_id)
     print(f"{len(wals_values)=}")
 
-    wals_ids = get_wals_ids(get_langs(dataset="bible", use_bert=True))
+    wals_ids = languages.source_ids(
+        "wals_id", get_langs(dataset="bible", use_bert=True)
+    )
     lang_to_value = {
         lang: wals_values[wals_id]
         for lang, wals_id in wals_ids.items()

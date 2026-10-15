@@ -1,6 +1,7 @@
-import langcodes
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+
+import languages
 
 
 class BibleTransformer(BaseEstimator, TransformerMixin):
@@ -33,15 +34,12 @@ class BibleTransformer(BaseEstimator, TransformerMixin):
         """
         Reads the TSV file specified by self.file_path and returns it as a pandas DataFrame.
         """
+        bible_files = languages.source_ids("bible_file", self.langs)
         lang_filenames = []
         for lang_2l in self.langs:
-            lang_name = (
-                langcodes.Language.make(language=lang_2l).display_name()
-                if lang_2l != "sl"
-                else "Slovene"
-            )
+            lang_name = bible_files.get(lang_2l)
             first_book_lang_file = self.file_path / "1-b.GEN" / f"{lang_name}.txt"
-            if first_book_lang_file.exists():
+            if lang_name and first_book_lang_file.exists():
                 lang_filenames.append(f"{lang_name}.txt")
             else:
                 print(f"Excluding: {lang_2l}/{lang_name}")

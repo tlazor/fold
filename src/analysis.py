@@ -8,9 +8,7 @@ imported in tests and notebooks without a GPU.
 from datetime import datetime
 import warnings
 
-import langcodes
 from matplotlib.colors import TwoSlopeNorm
-from paths import DATA_DIR
 import matplotlib.transforms as mtransforms
 from scipy.stats import pearsonr, spearmanr, kendalltau
 
@@ -20,6 +18,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 import constants
+import languages
 
 
 def show_heatmap(overlap_matrix, lang_labels=None):
@@ -495,47 +494,17 @@ def get_overlap(xnli_df, baseline, baseline_name, symmetrical=True):
 
 def get_langs(dataset="xnli", use_bert=True):
     if dataset == "bible":
-        langs = ["en"]
-        for lang_2l in list(constants.FSI_SCALE.keys()):
-            lang_name = (
-                langcodes.Language.make(language=lang_2l).display_name()
-                if lang_2l != "sl"
-                else "Slovene"
-            )
-            first_book_lang_file = DATA_DIR / "aligned" / "1-b.GEN" / f"{lang_name}.txt"
-            if first_book_lang_file.exists():
-                langs.append(lang_2l)
-        langs.sort()
+        langs = sorted(languages.source_ids("bible_file"))
     elif dataset == "un6":
         langs = constants.UN6_LANGS
     else:
         langs = constants.XNLI_LANGUAGES
 
-    model_langs_2l = []
     print(f"{len(langs)=}, {langs=}")
-    model_langs = (
-        constants.BERT_MULTILINGUAL_LANGS if use_bert else constants.XLMR_LANGS
-    )
-    for lang in model_langs:
-        try:
-            if lang == "Norwegian (Bokmal)":
-                lang_2l = "no"
-            else:
-                lang_2l = langcodes.Language.find_name("language", lang).language
-            if lang_2l is not None:
-                model_langs_2l.append(lang_2l)
-            else:
-                print(
-                    f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}"
-                )
-        except LookupError as e:
-            print(
-                f"{'BERT' if use_bert else 'XLMR'} Language not found in langcodes: {lang}-{e}"
-            )
-            continue
+    model_langs = languages.source_ids("mbert_name" if use_bert else "xlmr_name")
 
-    filtered_langs = [lang for lang in langs if lang in model_langs_2l]
-    langs_removed = [lang for lang in langs if lang not in model_langs_2l]
+    filtered_langs = [lang for lang in langs if lang in model_langs]
+    langs_removed = [lang for lang in langs if lang not in model_langs]
     print(f"Langs: {len(filtered_langs)=}, {filtered_langs=}")
     print(f"Removed langs: {langs_removed}") if langs_removed else None
     return filtered_langs

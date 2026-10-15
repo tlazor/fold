@@ -1,36 +1,9 @@
-import langcodes
 import numpy as np
 import pandas as pd
 
 from paths import DATA_DIR
 
 _WALS_DIR = DATA_DIR / "wals-v2020.4" / "cldf-datasets-wals-0f5cd82" / "cldf"
-
-WALS_LANG_IDS = {
-    "ar": "ams",  # Arabic (Modern Standard)
-    "bg": "bul",  # Bulgarian
-    "de": "ger",  # German
-    "el": "grk",  # Greek (Modern)
-    "en": "eng",  # English
-    "es": "spa",  # Spanish
-    "fr": "fre",  # French
-    "hi": "hin",  # Hindi
-    "ru": "rus",  # Russian
-    "sw": "swa",  # Swahili
-    "th": "tha",  # Thai
-    "tr": "tur",  # Turkish
-    "ur": "urd",  # Urdu
-    "vi": "vie",  # Vietnamese
-    "zh": "mnd",  # Mandarin
-}
-
-# Languages outside WALS_LANG_IDS that can't be found by ISO 639-3 code:
-# langcodes gives the macrolanguage "nep" where WALS lists Nepali as "npi",
-# and WALS merges Serbian into Serbian-Croatian ("hbs").
-_EXTRA_WALS_IDS = {
-    "ne": "nep",  # Nepali
-    "sr": "scr",  # Serbian-Croatian
-}
 
 _CORE_AREAS = [
     "Phonology",
@@ -48,40 +21,6 @@ _CORE_AREAS = [
 _MIN_FEATS_PER_AREA = 2
 # Minimum number of qualifying areas required to produce a non-NaN score.
 _MIN_AREAS = 3
-
-
-def get_wals_ids(langs: list[str]) -> dict[str, str]:
-    """Map pipeline language codes to WALS language IDs.
-
-    WALS uses its own IDs (German is "ger", not ISO 639-3 "deu"), and some ISO
-    codes collide with unrelated WALS IDs ("deu" is Deuri), so match on the
-    ISO639P3code column instead. Where several WALS entries share an ISO code
-    (dialect samples such as "German (Berlin)"), take the one with the most
-    coded features. WALS_LANG_IDS and _EXTRA_WALS_IDS take precedence.
-    Languages with no WALS entry are omitted.
-    """
-    languages = pd.read_csv(_WALS_DIR / "languages.csv", usecols=["ID", "ISO639P3code"])
-    values = pd.read_csv(_WALS_DIR / "values.csv", usecols=["Language_ID"])
-    languages["n_feats"] = (
-        languages["ID"].map(values["Language_ID"].value_counts()).fillna(0)
-    )
-    best_by_iso = (
-        languages.dropna(subset=["ISO639P3code"])
-        .sort_values("n_feats", ascending=False, kind="stable")
-        .drop_duplicates("ISO639P3code")
-        .set_index("ISO639P3code")["ID"]
-    )
-
-    curated = {**WALS_LANG_IDS, **_EXTRA_WALS_IDS}
-    wals_ids = {}
-    for lang in langs:
-        if lang in curated:
-            wals_ids[lang] = curated[lang]
-            continue
-        iso3 = langcodes.Language.get(lang).to_alpha3()
-        if iso3 in best_by_iso.index:
-            wals_ids[lang] = best_by_iso[iso3]
-    return wals_ids
 
 
 def _load_param_to_area() -> dict[str, str]:
@@ -124,7 +63,7 @@ def _load_ic_weights() -> dict[str, dict[float, float]]:
     return ic
 
 
-def get_wals_similarity(lang_ids: dict[str, str] | None = None) -> pd.DataFrame:
+def get_wals_similarity(lang_ids: dict[str, str]) -> pd.DataFrame:
     """Area-balanced, IC-weighted pairwise WALS feature agreement.
 
     For each language pair (A, B) and each of the 9 WALS areas:
@@ -136,11 +75,9 @@ def get_wals_similarity(lang_ids: dict[str, str] | None = None) -> pd.DataFrame:
     The final score is the mean of qualifying area scores; NaN if fewer than
     _MIN_AREAS areas qualify.
 
-    Returns a symmetric DataFrame indexed by ISO 639-1 2-letter codes.
+    `lang_ids` maps pipeline codes to WALS IDs (see languages.source_ids).
+    Returns a symmetric DataFrame indexed by the pipeline codes.
     """
-    if lang_ids is None:
-        lang_ids = WALS_LANG_IDS
-
     iso2 = list(lang_ids.keys())
     wids = list(lang_ids.values())
 
