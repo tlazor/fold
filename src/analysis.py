@@ -110,41 +110,54 @@ def star_fmt(p: float) -> str:
 formatters = {c: star_fmt for c in ["p_pval", "s_pval"]}
 
 
-def analyze_output(
-    output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False
-):
-    if "en" not in langs:
-        raise ValueError(
-            f"English ('en') must be present in langs for FSI correlation; got {langs}"
-        )
-    en_index = langs.index("en")
+def fold_matrix(output, langs):
+    """Median over samples of a (n_samples, n_langs, n_langs) metric stack.
 
-    median_matrix = np.nanmedian(output, axis=0)
-    xnli_df = pd.DataFrame(median_matrix, index=langs, columns=langs)
+    Labelled by language, with a NaN diagonal (self-pairs are not data).
+    """
+    fold_df = pd.DataFrame(np.nanmedian(output, axis=0), index=langs, columns=langs)
     for i in range(len(langs)):
-        xnli_df.iloc[i, i] = np.nan
+        fold_df.iloc[i, i] = np.nan
+    return fold_df
 
-    en_source_distances = median_matrix[en_index]
-    fsi = baselines.fsi()
-    df_fsi = pd.DataFrame(columns=["lang", "fold", "fsi"])
 
-    for lang, fold_distance in zip(langs, en_source_distances):
-        if lang == "en":
-            continue
-        df_fsi.loc[len(df_fsi)] = [lang, fold_distance, fsi[lang]]
+def baseline_pairs(fold_df):
+    """FOLD values paired with each ground-truth measure, as correlated.
 
-    df_fsi.set_index("lang", inplace=True)
-
+    Returns {measure name: DataFrame with columns ["fold", name]}. Pairwise
+    measures are indexed by (lang_a, lang_b); "fsi" is indexed by language and
+    pairs each language's FOLD value from English with its FSI rating.
+    """
+    if "en" not in fold_df.index:
+        raise ValueError(
+            "English ('en') must be present in langs for FSI correlation; "
+            f"got {list(fold_df.index)}"
+        )
     # Pairwise baselines are named by what they measure (e.g. lex_dist is a
     # distance), so read each correlation's sign against its baseline's kind.
-    dataframes = {
+    pairs = {
         baseline.name: get_overlap(
-            xnli_df, baseline.matrix, baseline.name, symmetrical=baseline.symmetric
+            fold_df, baseline.matrix, baseline.name, symmetrical=baseline.symmetric
         )
         for baseline in baselines.pairwise()
     }
-    dataframes["fsi"] = df_fsi
-    results_long = calculate_correlations_new(dataframes)
+    others = [lang for lang in fold_df.index if lang != "en"]
+    pairs["fsi"] = pd.DataFrame(
+        {"fold": fold_df.loc["en", others].to_numpy(), "fsi": baselines.fsi()[others]},
+        index=pd.Index(others, name="lang"),
+    )
+    return pairs
+
+
+def correlate_with_baselines(output, langs):
+    """One row of correlations per ground-truth measure (see calculate_correlations_new)."""
+    return calculate_correlations_new(baseline_pairs(fold_matrix(output, langs)))
+
+
+def analyze_output(
+    output, langs, f=None, model_name=None, flag_analyze_pearson_contrib=False
+):
+    results_long = correlate_with_baselines(output, langs)
     print(
         results_long.to_markdown(index=False, floatfmt=".3f", tablefmt="github"),
         file=f,
@@ -153,6 +166,7 @@ def analyze_output(
 
     if flag_analyze_pearson_contrib:
         analyze_pearson_contrib(results_long, model_name)
+    return results_long
 
 
 def analyze_pearson_contrib(results_long, model_name):

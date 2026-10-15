@@ -1,9 +1,18 @@
 import io
 
 import numpy as np
+import pytest
 import pandas as pd
 
-from analysis import analyze_output, get_langs, get_overlap, calculate_correlations_new
+from analysis import (
+    analyze_output,
+    baseline_pairs,
+    calculate_correlations_new,
+    correlate_with_baselines,
+    fold_matrix,
+    get_langs,
+    get_overlap,
+)
 
 
 def _make_df(langs, seed=0):
@@ -164,3 +173,27 @@ class TestAnalyzeOutput:
         analyze_output(output, langs, f=buf)
         for name in ["mut_int", "lex_dist", "pho_dist", "wals_sim", "fsi"]:
             assert f"| {name} " in buf.getvalue()
+
+    def test_returns_the_printed_table(self):
+        langs = ["de", "en", "es", "fr", "it", "nl", "pt", "ru"]
+        output = np.random.default_rng(0).random((5, len(langs), len(langs)))
+        printed = analyze_output(output, langs, f=io.StringIO())
+        pd.testing.assert_frame_equal(printed, correlate_with_baselines(output, langs))
+
+
+class TestBaselinePairs:
+    def test_fsi_pairs_each_language_with_its_value_from_english(self):
+        langs = ["de", "en", "ja"]
+        output = np.arange(18, dtype=float).reshape(2, 3, 3)
+        fold = fold_matrix(output, langs)
+        assert np.isnan(np.diag(fold.to_numpy())).all()
+
+        fsi = baseline_pairs(fold)["fsi"]
+        assert list(fsi.index) == ["de", "ja"]
+        assert fsi.loc["ja", "fold"] == fold.loc["en", "ja"]
+        assert fsi.loc["ja", "fsi"] == 88
+
+    def test_requires_english(self):
+        fold = fold_matrix(np.ones((2, 2, 2)), ["de", "fr"])
+        with pytest.raises(ValueError):
+            baseline_pairs(fold)

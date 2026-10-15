@@ -128,7 +128,8 @@ def _metric_outputs(config, signals, spectra_components):
     return outputs
 
 
-def main():
+def configure_torch():
+    """GPU settings for a run: cap this process at 80% of VRAM, TF32 matmuls."""
     torch.cuda.empty_cache()
 
     if torch.cuda.is_available():
@@ -137,12 +138,28 @@ def main():
     torch.set_float32_matmul_precision("high")
     torch._dynamo.config.capture_scalar_outputs = True
 
-    device = auto_device()
-    print("Using device:", device)
 
-    config = PipelineOptions.from_args()
-    config.print_config()
+def experiment_layers(config):
+    """Layers a run iterates over: None (one pass) in likelihood mode."""
+    return config.layers if config.signal_mode == "embedding" else [None]
 
+
+def metric_names(config):
+    """Metric names a run produces, in output order."""
+    names = list(_SPECTRAL_METRICS)
+    if config.spectral_mode != "none":
+        names.append(_COHERENCE)
+    return names
+
+
+def run_experiment(config, device=None):
+    """
+    Run every band, metric and layer of one configuration.
+
+    Returns (langs, outputs): outputs[(band index, metric name, layer)] is the
+    (n_samples, n_langs, n_langs) stack of per-sample metric matrices.
+    """
+    device = device if device is not None else auto_device()
     langs = get_langs(config.dataset, config.use_bert)
     spectra_components = _build_spectra_components(config)
 
@@ -152,40 +169,52 @@ def main():
         _build_data_components(config, langs), verbose=True
     ).fit_transform(None)
 
-    # likelihood runs once (layer=None); embedding loops over layers
-    layers = config.layers if config.signal_mode == "embedding" else [None]
     outputs = {}
-    for layer in layers:
+    for layer in experiment_layers(config):
         signals = _signal_transformer(config, layer, device).fit_transform(samples)
         for (k, name), output in _metric_outputs(
             config, signals, spectra_components
         ).items():
             outputs[(k, name, layer)] = output
         del signals  # one layer's signals in memory at a time
+    return langs, outputs
 
-    metric_names = list(_SPECTRAL_METRICS)
-    if config.spectral_mode != "none":
-        metric_names.append(_COHERENCE)
+
+def write_results(config, langs, outputs, f):
+    """Write the config and every correlation table, band -> metric -> layer."""
+    config.print_config(file=f)
+
+    for k, band in enumerate(config.freq_bands):
+        print(f"{band=}", file=f)
+        for name in metric_names(config):
+            print(name, file=f)
+            for layer in experiment_layers(config):
+                if layer is not None:
+                    print(f"{layer=}", file=f)
+                analyze_output(
+                    outputs[(k, name, layer)],
+                    langs,
+                    f=f,
+                    model_name=config.model_name,
+                    flag_analyze_pearson_contrib=config.analyze_pearson_contrib,
+                )
+
+
+def main():
+    configure_torch()
+
+    device = auto_device()
+    print("Using device:", device)
+
+    config = PipelineOptions.from_args()
+    config.print_config()
+
+    langs, outputs = run_experiment(config, device)
 
     output_path = Path(config.get_output_filename())
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w+", encoding="utf-8") as f:
-        config.print_config(file=f)
-
-        for k, band in enumerate(config.freq_bands):
-            print(f"{band=}", file=f)
-            for name in metric_names:
-                print(name, file=f)
-                for layer in layers:
-                    if layer is not None:
-                        print(f"{layer=}", file=f)
-                    analyze_output(
-                        outputs[(k, name, layer)],
-                        langs,
-                        f=f,
-                        model_name=config.model_name,
-                        flag_analyze_pearson_contrib=config.analyze_pearson_contrib,
-                    )
+        write_results(config, langs, outputs, f)
 
 
 if __name__ == "__main__":
