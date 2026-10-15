@@ -89,8 +89,12 @@ _COHERENCE_NPERSEG = 10
 
 def _signal_transformer(config, layer, device):
     if config.signal_mode == "embedding":
+        # All layers come from one forward pass, cached together.
         return EmbedTransformer(
-            layer=layer, model_name=config.model_name, device=device
+            layer=layer,
+            layers=tuple(config.layers),
+            model_name=config.model_name,
+            device=device,
         )
     return LikelihoodEstimator(
         model_name=config.model_name,
