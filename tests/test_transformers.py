@@ -1,6 +1,10 @@
 import numpy as np
+import pandas as pd
+from transformers import BertTokenizerFast
+
 from SampleTokens import SampleTokens
 from NoOpTransformer import NoOpTransformer
+from TokenTransform import TokenTransform
 
 
 def _make_sample(n_langs: int, n_tokens: int, n_valid: list):
@@ -104,3 +108,42 @@ class TestNoOpTransformer:
     def test_fit_returns_self(self):
         t = NoOpTransformer()
         assert t.fit(None) is t
+
+
+# ===========================================================================
+# TokenTransform
+# ===========================================================================
+
+
+def _tiny_tokenizer_dir(tmp_path):
+    words = ["the", "cat", "sat", "le", "chat", "assis", "a", "b"]
+    (tmp_path / "vocab.txt").write_text(
+        "\n".join(["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"] + words)
+    )
+    BertTokenizerFast(vocab_file=str(tmp_path / "vocab.txt")).save_pretrained(tmp_path)
+    return str(tmp_path)
+
+
+class TestTokenTransform:
+    def test_matches_one_call_per_sentence(self, tmp_path):
+        name = _tiny_tokenizer_dir(tmp_path)
+        df = pd.DataFrame(
+            {"en": ["the cat sat", "the " * 80], "fr": ["le chat assis", "a b"]}
+        )
+        result = TokenTransform(model_name=name).transform(df)
+
+        tokenizer = BertTokenizerFast.from_pretrained(name)
+        assert len(result) == 2 and all(len(row) == 2 for row in result)
+        for i in range(2):
+            for j in range(2):
+                expected = tokenizer(
+                    df.iloc[i, j],
+                    max_length=64,
+                    padding="max_length",
+                    truncation=True,
+                    return_tensors="np",
+                )
+                ids, mask = result[i][j]
+                assert ids.shape == (1, 64) and ids.dtype == np.int64
+                np.testing.assert_array_equal(ids, expected["input_ids"])
+                np.testing.assert_array_equal(mask, expected["attention_mask"])

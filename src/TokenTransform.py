@@ -1,31 +1,14 @@
 from functools import lru_cache
 
-from joblib import Memory
 from sklearn.base import BaseEstimator, TransformerMixin
 from transformers import AutoTokenizer
 
-from paths import CACHE_DIR
-
-memory = Memory(CACHE_DIR / "joblib", verbose=0)
+_MAX_TOKENS = 64
 
 
 @lru_cache(maxsize=4)
 def _get_tokenizer(model_name: str):
     return AutoTokenizer.from_pretrained(model_name, clean_up_tokenization_spaces=True)
-
-
-@memory.cache
-def _tokenize(model_name: str, text: str, max_tokens: int = 64):
-    tokenizer = _get_tokenizer(model_name)
-    encoded = tokenizer(
-        text,
-        max_length=max_tokens,
-        padding="max_length",
-        truncation=True,
-        return_tensors="np",
-        add_special_tokens=True,
-    )
-    return encoded["input_ids"], encoded["attention_mask"]
 
 
 class TokenTransform(BaseEstimator, TransformerMixin):
@@ -36,14 +19,30 @@ class TokenTransform(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        n_langs, n_features = X.shape
+        """
+        Tokenize every sentence of X (rows: parallel sentences, columns: languages).
 
-        results = []
-        for i in range(n_langs):
-            token_arrays = []
-            for j in range(n_features):
-                text = X.iloc[i, j]
-                token_arrays.append(_tokenize(self.model_name, text))
-            results.append(token_arrays)
-
-        return results
+        Returns one list per row holding an (input_ids, attention_mask) pair per
+        language, each of shape (1, _MAX_TOKENS). Each language column is
+        tokenized in one batched call, which is several times faster than one
+        call per sentence and needs no cache.
+        """
+        tokenizer = _get_tokenizer(self.model_name)
+        columns = [
+            tokenizer(
+                X.iloc[:, j].tolist(),
+                max_length=_MAX_TOKENS,
+                padding="max_length",
+                truncation=True,
+                return_tensors="np",
+                add_special_tokens=True,
+            )
+            for j in range(X.shape[1])
+        ]
+        return [
+            [
+                (enc["input_ids"][i : i + 1], enc["attention_mask"][i : i + 1])
+                for enc in columns
+            ]
+            for i in range(X.shape[0])
+        ]
