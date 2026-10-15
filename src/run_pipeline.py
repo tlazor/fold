@@ -50,7 +50,9 @@ def _build_data_components(config, langs):
     else:
         loader = (
             "load_tsv",
-            TsvToDataFrame(DATA_DIR / "XNLI-15way" / "xnli.15way.orig.tsv"),
+            TsvToDataFrame(
+                DATA_DIR / "XNLI-15way" / "xnli.15way.orig.tsv", langs=langs
+            ),
         )
     return [
         loader,
