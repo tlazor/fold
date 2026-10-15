@@ -79,7 +79,7 @@ class EmbedTransformer(BaseEstimator, TransformerMixin):
         model.eval()
 
         results = []
-        for sample in track(X):
+        for sample in track(X, description="hidden states"):
             all_ids = np.vstack([ids for ids, _ in sample])  # (n_langs, seq_len)
             all_masks = np.vstack([mask for _, mask in sample])  # (n_langs, seq_len)
 

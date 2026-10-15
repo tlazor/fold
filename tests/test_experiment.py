@@ -12,12 +12,12 @@ from MetricTransformer import (
     kl_divergence_matrix,
 )
 from pipeline_options import PipelineOptions
-from run_pipeline import _build_spectra_components, _metric_outputs
+from experiment import _build_spectra_components, compare_languages
 
 
 @pytest.mark.parametrize("spectral_mode", ["welch", "fft", "none"])
 @pytest.mark.parametrize("signal_mode", ["likelihood", "embedding"])
-def test_metric_outputs_match_one_pipeline_per_metric(signal_mode, spectral_mode):
+def test_compare_languages_matches_one_pipeline_per_metric(signal_mode, spectral_mode):
     # The pipeline used to be rebuilt for every (band, metric): spectra, band
     # selection and metric for overlaps/KL, coherence_matrix on the raw signal.
     config = PipelineOptions(
@@ -27,7 +27,7 @@ def test_metric_outputs_match_one_pipeline_per_metric(signal_mode, spectral_mode
     shape = (4, 64) if signal_mode == "likelihood" else (4, 64, 8)
     signals = [rng.random(shape) for _ in range(5)]
 
-    outputs = _metric_outputs(config, signals, _build_spectra_components(config))
+    outputs = compare_languages(signals, config)
 
     for k, band in enumerate(config.freq_bands):
         for fun in (compute_overlaps, kl_divergence_matrix):

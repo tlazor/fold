@@ -139,7 +139,7 @@ class LikelihoodEstimator(BaseEstimator, TransformerMixin):
         head.to(device).eval()
 
         results = []
-        for sample in track(X):
+        for sample in track(X, description="masked-token likelihoods"):
             # Stack all language token arrays into (n_langs, seq_len).
             all_ids = np.vstack([ids for ids, _ in sample])  # (n_langs, seq_len)
             all_masks = np.vstack([mask for _, mask in sample])  # (n_langs, seq_len)

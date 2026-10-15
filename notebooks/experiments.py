@@ -28,7 +28,7 @@ def _():
     import baselines
     import constants
     from pipeline_options import PipelineOptions
-    from run_pipeline import (
+    from experiment import (
         configure_torch,
         experiment_layers,
         metric_names,

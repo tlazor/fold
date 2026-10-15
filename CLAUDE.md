@@ -62,7 +62,7 @@ Output files: `{output_dir}/{dataset}_{model}_{signal_mode}_output.txt`
 
 ## Architecture
 
-`run_pipeline.py` builds the samples once, extracts each layer's signal once, then computes every band and metric from memory and writes them in band → metric → layer order. Its `run_experiment(config)` returns the results in memory and `write_results()` writes the text file; with `analysis.correlate_with_baselines()` / `baseline_pairs()` these are what `notebooks/experiments.py` builds on. The data flow is:
+The experiment's steps live in `experiment.py`: `languages()`, `sample_parallel_sentences()`, `extract_signals()` (per layer) and `compare_languages()` (every band and metric). `run_experiment(config)` chains them, building the samples and each layer's signal once, and `write_results()` writes the text file in band → metric → layer order; `run_pipeline.py` is the CLI around them. The data flow is:
 
 ```
 DataLoader → TokenTransform → SampleTokens → [LikelihoodEstimator | EmbedTransformer]
