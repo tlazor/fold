@@ -9,7 +9,6 @@ import argparse
 import functools
 import json
 from pathlib import Path
-from paths import CACHE_DIR
 
 
 class PipelineOptions:
@@ -177,10 +176,6 @@ class PipelineOptions:
     @property
     def prefix(self):
         return self.dataset
-
-    @property
-    def cachedir(self):
-        return CACHE_DIR / "joblib" / "tmp" / self.model
 
     @functools.cached_property
     def mask_token_id(self):

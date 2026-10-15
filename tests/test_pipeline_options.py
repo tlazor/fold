@@ -91,14 +91,6 @@ class TestDerivedProperties:
         assert PipelineOptions(dataset="un6").prefix == "un6"
         assert PipelineOptions(dataset="xnli").prefix == "xnli"
 
-    def test_cachedir_contains_model(self):
-        p = PipelineOptions(model="bert").cachedir
-        assert "bert" in str(p)
-
-    def test_cachedir_contains_xlmr(self):
-        p = PipelineOptions(model="xlmr").cachedir
-        assert "xlmr" in str(p)
-
 
 # ===========================================================================
 # Output filenames
