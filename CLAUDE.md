@@ -36,6 +36,8 @@ uv run marimo check notebooks/
 
 The notebook sets `HF_HOME` to `data/models` (as the Docker image does) so local runs use the downloaded models; the CLI doesn't, so set `HF_HOME=data/models` yourself when running `run_pipeline.py` outside Docker.
 
+Notebook conventions (`notebooks/experiments.py`): its visible code is the experiment itself, written as the `experiment.py` steps with short comments; everything else is hidden. Markdown, widgets and display cells use `@app.cell(hide_code=True)`, cells that only turn widgets into settings sit in the Mechanics section at the end (marimo runs cells in dependency order), and tables and figures come from `src/report.py`. Show each widget in the same output as the result it changes. `experiment.set_verbose(False)` keeps the notebook's console to progress bars.
+
 Docker (for GPU workloads, requires NVIDIA container runtime):
 ```bash
 docker compose -f docker/docker-compose.yaml run --rm fold

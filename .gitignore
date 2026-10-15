@@ -178,3 +178,6 @@ data/6way/
 data/UNv1.0.6way.tar.gz*
 data/models/
 cache/
+
+# marimo session state
+__marimo__/
