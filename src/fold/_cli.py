@@ -8,4 +8,5 @@ importable directly from here.
 
 def main():
     from run_pipeline import main as _main
+
     _main()

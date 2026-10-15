@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from SpectralTransformer import SpectralTransformer, circular_optimized
 from PsdEstimator import PsdEstimator
 from PsdNormalizer import PsdNormalizer
@@ -9,6 +8,7 @@ from BandSelectTransformer import BandSelectTransformer
 # ===========================================================================
 # SpectralTransformer / circular_optimized
 # ===========================================================================
+
 
 class TestSpectralTransformer:
     def test_circular_optimized_shape(self):
@@ -43,6 +43,7 @@ class TestSpectralTransformer:
 # PsdEstimator
 # ===========================================================================
 
+
 class TestPsdEstimator:
     def test_output_is_ndarray(self, signal_list_2d):
         result = PsdEstimator(nperseg=8).transform(signal_list_2d)
@@ -74,6 +75,7 @@ class TestPsdEstimator:
 # ===========================================================================
 # PsdNormalizer
 # ===========================================================================
+
 
 class TestPsdNormalizer:
     def test_output_is_list(self, psd_list_2d):
@@ -108,6 +110,7 @@ class TestPsdNormalizer:
 # BandSelectTransformer
 # ===========================================================================
 
+
 class TestBandSelectTransformer:
     def test_full_range_2d_shape(self, psd_list_2d):
         result = BandSelectTransformer(freq_band=(0, 1)).transform(psd_list_2d)
@@ -129,14 +132,15 @@ class TestBandSelectTransformer:
             np.testing.assert_array_equal(result[i], x)
 
     def test_half_range_3d_shape(self, psd_list_3d):
-        # Each input (3, 4, 8); freq_band=(0.5,1.0) → last dim 4:8 → stacked (4, 3, 4, 4)
+        # Each input (langs=3, freq=4, hidden_dim=8); freq_band=(0.5,1.0) → freq axis 2:4
+        # → stacked (4, 3, 2, 8)
         result = BandSelectTransformer(freq_band=(0.5, 1.0)).transform(psd_list_3d)
-        assert result.shape == (4, 3, 4, 4)
+        assert result.shape == (4, 3, 2, 8)
 
     def test_values_match_slice_3d(self, psd_list_3d):
         result = BandSelectTransformer(freq_band=(0.5, 1.0)).transform(psd_list_3d)
         for i, x in enumerate(psd_list_3d):
-            np.testing.assert_array_equal(result[i], x[:, :, 4:8])
+            np.testing.assert_array_equal(result[i], x[:, 2:4, :])
 
     def test_fit_returns_self(self):
         t = BandSelectTransformer(freq_band=(0, 1))

@@ -9,7 +9,6 @@ import argparse
 import functools
 import json
 from pathlib import Path
-from paths import CACHE_DIR
 
 
 class PipelineOptions:
@@ -46,13 +45,19 @@ class PipelineOptions:
             Directory for output .txt and .json files.
         """
         if dataset not in {"xnli", "bible", "un6"}:
-            raise ValueError(f"dataset must be 'xnli', 'bible', or 'un6', got {dataset!r}")
+            raise ValueError(
+                f"dataset must be 'xnli', 'bible', or 'un6', got {dataset!r}"
+            )
         if model not in {"bert", "xlmr"}:
             raise ValueError(f"model must be 'bert' or 'xlmr', got {model!r}")
         if signal_mode not in {"likelihood", "embedding"}:
-            raise ValueError(f"signal_mode must be 'likelihood' or 'embedding', got {signal_mode!r}")
+            raise ValueError(
+                f"signal_mode must be 'likelihood' or 'embedding', got {signal_mode!r}"
+            )
         if spectral_mode not in {"welch", "fft", "none"}:
-            raise ValueError(f"spectral_mode must be 'welch', 'fft', or 'none', got {spectral_mode!r}")
+            raise ValueError(
+                f"spectral_mode must be 'welch', 'fft', or 'none', got {spectral_mode!r}"
+            )
 
         self.dataset = dataset
         self.model = model
@@ -67,10 +72,11 @@ class PipelineOptions:
 
         if num_bands > 1:
             import numpy as np
+
             beginning_freqs = np.linspace(0, 1, num=num_bands, endpoint=False)
-            self.freq_bands = list(zip(
-                beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands)
-            ))
+            self.freq_bands = list(
+                zip(beginning_freqs, np.linspace(beginning_freqs[1], 1, num=num_bands))
+            )
         else:
             self.freq_bands = [(0, 1)]
 
@@ -171,13 +177,10 @@ class PipelineOptions:
     def prefix(self):
         return self.dataset
 
-    @property
-    def cachedir(self):
-        return CACHE_DIR / "joblib" / "tmp" / self.model
-
     @functools.cached_property
     def mask_token_id(self):
         from transformers import AutoTokenizer
+
         return AutoTokenizer.from_pretrained(
             self.model_name, clean_up_tokenization_spaces=True
         ).mask_token_id

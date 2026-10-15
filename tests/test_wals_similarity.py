@@ -1,0 +1,61 @@
+import math
+import pytest
+import languages
+from constants import XNLI_LANGUAGES
+from wals_similarity import get_wals_similarity
+
+
+@pytest.fixture(scope="module")
+def sim():
+    return get_wals_similarity(languages.source_ids("wals_id", XNLI_LANGUAGES))
+
+
+def test_shape(sim):
+    n = len(XNLI_LANGUAGES)
+    assert sim.shape == (n, n)
+
+
+def test_index_labels(sim):
+    expected = set(XNLI_LANGUAGES)
+    assert set(sim.index) == expected
+    assert set(sim.columns) == expected
+
+
+def test_diagonal_is_one(sim):
+    for lang in sim.index:
+        assert sim.loc[lang, lang] == pytest.approx(1.0)
+
+
+def test_symmetry(sim):
+    diff = (sim - sim.T).abs()
+    assert diff.max().max() < 1e-10
+
+
+def test_hindi_urdu_high(sim):
+    # Hindi and Urdu share grammar almost entirely; similarity should be very high.
+    assert sim.loc["hi", "ur"] > 0.9
+
+
+def test_thai_vietnamese_high(sim):
+    # Both isolating, Mainland Southeast Asian, strong typological overlap.
+    assert sim.loc["th", "vi"] > 0.6
+
+
+def test_arabic_swahili_low_or_nan(sim):
+    val = sim.loc["ar", "sw"]
+    assert math.isnan(val) or val < 0.5
+
+
+def test_values_in_range(sim):
+    for lang_a in sim.index:
+        for lang_b in sim.columns:
+            v = sim.loc[lang_a, lang_b]
+            if not math.isnan(v):
+                assert 0.0 <= v <= 1.0
+
+
+def test_matches_reference_values(sim):
+    # Values from the original per-pair loop implementation.
+    assert sim.loc["en", "de"] == pytest.approx(0.6179131631132291, abs=1e-12)
+    assert sim.loc["hi", "ur"] == pytest.approx(0.9553632678868924, abs=1e-12)
+    assert sim.loc["th", "vi"] == pytest.approx(0.7238712305255468, abs=1e-12)

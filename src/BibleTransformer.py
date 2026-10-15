@@ -1,6 +1,7 @@
-import langcodes
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
+
+import languages
 
 
 class BibleTransformer(BaseEstimator, TransformerMixin):
@@ -33,18 +34,13 @@ class BibleTransformer(BaseEstimator, TransformerMixin):
         """
         Reads the TSV file specified by self.file_path and returns it as a pandas DataFrame.
         """
-        lang_filenames = []
-        for lang_2l in self.langs:
-            lang_name = (
-                langcodes.Language.make(language=lang_2l).display_name()
-                if lang_2l != "sl"
-                else "Slovene"
-            )
-            first_book_lang_file = self.file_path / "1-b.GEN" / f"{lang_name}.txt"
-            if first_book_lang_file.exists():
-                lang_filenames.append(f"{lang_name}.txt")
-            else:
-                print(f"Excluding: {lang_2l}/{lang_name}")
+        # Fail rather than skip a language: downstream steps identify languages
+        # by column position, so a dropped column would shift every label.
+        bible_files = languages.source_ids("bible_file", self.langs)
+        missing = [lang for lang in self.langs if lang not in bible_files]
+        if missing:
+            raise ValueError(f"No Bible file registered for {missing}")
+        lang_filenames = [f"{bible_files[lang]}.txt" for lang in self.langs]
 
         aligned_lines = []
         for book_num in range(1, self.books):
@@ -63,7 +59,7 @@ class BibleTransformer(BaseEstimator, TransformerMixin):
             for f in lang_files:
                 f.close()
 
-        # Each column corresponds to one file; each row is the x-th line from each file
-        df = pd.DataFrame(aligned_lines)
+        # Each column corresponds to one language; each row is the x-th line from each file
+        df = pd.DataFrame(aligned_lines, columns=self.langs)
 
         return df

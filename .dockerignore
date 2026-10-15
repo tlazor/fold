@@ -11,5 +11,4 @@ tests/
 .ruff_cache/
 cache/
 .pytest_cache/
-review.md
 CLAUDE.md

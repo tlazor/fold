@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-import langcodes
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -23,9 +22,8 @@ def analyze_spectra_by_feature_value(
     # Group languages by their feature values
     value_groups = defaultdict(list)
     for lang in langs:
-        alpha3 = langcodes.Language.get(lang).to_alpha3()
-        if alpha3 in lang_to_value:
-            value_groups[lang_to_value[alpha3]].append(lang)
+        if lang in lang_to_value:
+            value_groups[lang_to_value[lang]].append(lang)
 
     # For each feature value group
     avg_spectra = {}

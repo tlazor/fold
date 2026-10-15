@@ -1,8 +1,5 @@
 import math
-import langcodes
 import pandas as pd
-
-from paths import DATA_DIR
 
 BERT_MULTILINGUAL_LANGS = [
     "Afrikaans",
@@ -301,57 +298,6 @@ FSI_SCALE = {
     "ko": 88,  # Korean
 }
 
-# Mutual Intelligibility results from
-# https://www.tandfonline.com/doi/full/10.1080/14790718.2017.1350185
-_CONSTANTS_DIR = DATA_DIR / "constants"
-
-try:
-    GERMANIC_INTELLIGABILITY = pd.read_csv(
-        _CONSTANTS_DIR / "germanic_intelligibility.csv", index_col=0
-    )
-    ROMANCE_INTELLIGABILITY = pd.read_csv(
-        _CONSTANTS_DIR / "romance_intelligibility.csv", index_col=0
-    )
-    SLAVIC_INTELLIGABILITY = pd.read_csv(
-        _CONSTANTS_DIR / "slavic_intelligibility.csv", index_col=0
-    )
-except FileNotFoundError as _e:
-    raise FileNotFoundError(
-        f"Missing intelligibility CSV ({_e}). "
-        f"Ensure {_CONSTANTS_DIR} exists in the project data directory."
-    ) from _e
-
-
-def get_lexical_distance():
-    lex_sim = pd.read_excel(DATA_DIR / "lexical-distance-matrix.xlsx", skiprows=2)
-
-    # Drop the "branch" and "language" columns
-    lex_sim = lex_sim.drop(columns=["Unnamed: 0", "Unnamed: 1"])
-
-    def convert_3_to_2(letter3):
-        return langcodes.Language.get(letter3).language
-
-    lex_sim["abbr_2_letter"] = lex_sim["Abreviation"].apply(convert_3_to_2)
-
-    mapping_3_to_2 = dict(zip(lex_sim["Abreviation"], lex_sim["abbr_2_letter"]))
-
-    def rename_col(col):
-        return mapping_3_to_2[col] if col in mapping_3_to_2 else col
-
-    lex_sim = lex_sim.rename(columns=rename_col)
-    lex_sim = lex_sim.set_index("abbr_2_letter")
-    lex_sim = lex_sim.drop(columns=["Abreviation"])
-
-    return lex_sim
-
-
-LEXICAL_SIMILARITY = get_lexical_distance()
-
-PHONETIC_SIMILARITY = pd.read_csv(
-    DATA_DIR / "asjp_ldnd_distances_by_iso2.csv", header=0, index_col=0
-)
-
-
 # Dictionary of language and wikisize
 language_wikisize = {
     "io": 3,
@@ -561,49 +507,49 @@ XLMR_SIZE_LOG = {k: math.log2(v) for k, v in XLMR_SIZE.items()}
 
 families = {
     # Indo-European → Germanic branch
-    "Germanic":      ["da", "de", "en", "nl", "no", "sv"],
+    "Germanic": ["da", "de", "en", "nl", "no", "sv"],
     # Indo-European → Romance branch (+ French-based Haitian Creole)
-    "Romance":       ["fr", "it", "pt", "ro", "es", "ht"],
+    "Romance": ["fr", "it", "pt", "ro", "es", "ht"],
     # Indo-European → Slavic branch
-    "Slavic":        ["bg", "cs", "mk", "pl", "ru", "sr", "sk", "sl", "uk"],
+    "Slavic": ["bg", "cs", "mk", "pl", "ru", "sr", "sk", "sl", "uk"],
     # Indo-European → Baltic branch
-    "Baltic":        ["lv", "lt"],
+    "Baltic": ["lv", "lt"],
     # Indo-European → Albanian branch
-    "Albanian":      ["sq"],
+    "Albanian": ["sq"],
     # Indo-European → Greek branch
-    "Greek":         ["el"],
+    "Greek": ["el"],
     # Indo-European → Armenian branch
-    "Armenian":      ["hy"],
+    "Armenian": ["hy"],
     # Indo-European → Indo-Aryan branch
-    "Indo-Aryan":    ["bn", "hi", "ne", "ur"],
+    "Indo-Aryan": ["bn", "hi", "ne", "ur"],
     # Indo-European → Iranian branch
-    "Iranian":       ["fa", "ku", "tg"],
+    "Iranian": ["fa", "ku", "tg"],
     # Uralic family
-    "Uralic":        ["et", "fi", "hu"],
+    "Uralic": ["et", "fi", "hu"],
     # Turkic family
-    "Turkic":        ["az", "kk", "ky", "tk", "tr", "uz"],
+    "Turkic": ["az", "kk", "ky", "tk", "tr", "uz"],
     # Kartvelian family
-    "Kartvelian":    ["ka"],
+    "Kartvelian": ["ka"],
     # Mongolic family
-    "Mongolic":      ["mn"],
+    "Mongolic": ["mn"],
     # Semitic family
-    "Semitic":       ["am", "ar", "he"],
+    "Semitic": ["am", "ar", "he"],
     # Niger-Congo → Bantu subgroup
-    "Bantu":         ["sw"],
+    "Bantu": ["sw"],
     # Austronesian → Malayo-Polynesian subgroup
-    "Austronesian":  ["id", "ms"],
+    "Austronesian": ["id", "ms"],
     # Austroasiatic family
     "Austroasiatic": ["km", "vi"],
     # Tai-Kadai family
-    "Tai-Kadai":     ["lo", "th"],
+    "Tai-Kadai": ["lo", "th"],
     # Sino-Tibetan → Sinitic subgroup
-    "Sinitic":       ["zh", "yue"],
+    "Sinitic": ["zh", "yue"],
     # Sino-Tibetan → Burmish subgroup
-    "Sino-Tibetan":  ["my"],
+    "Sino-Tibetan": ["my"],
     # Japonic family
-    "Japonic":       ["ja"],
+    "Japonic": ["ja"],
     # Koreanic family
-    "Koreanic":      ["ko"],
+    "Koreanic": ["ko"],
 }
 
 lang2family = {code: fam for fam, codes in families.items() for code in codes}

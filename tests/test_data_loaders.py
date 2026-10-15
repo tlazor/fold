@@ -1,5 +1,7 @@
 from pathlib import Path
+
 import pytest
+
 from TsvToDataFrame import TsvToDataFrame
 from BibleTransformer import BibleTransformer
 from Un6Transformer import Un6Transformer
@@ -7,6 +9,7 @@ from Un6Transformer import Un6Transformer
 # ===========================================================================
 # TsvToDataFrame
 # ===========================================================================
+
 
 class TestTsvToDataFrame:
     def test_shape(self, tmp_path):
@@ -34,16 +37,60 @@ class TestTsvToDataFrame:
         t = TsvToDataFrame(file_path=tsv)
         assert t.fit(None) is t
 
+    def test_langs_select_and_order_columns(self, tmp_path):
+        tsv = tmp_path / "test.tsv"
+        tsv.write_text("en\tfr\tde\n1\t2\t3\n", encoding="utf-8")
+        df = TsvToDataFrame(file_path=tsv, langs=["de", "en"]).transform(None)
+        assert list(df.columns) == ["de", "en"]
+        assert df.iloc[0].tolist() == [3, 1]
+
+    def test_missing_lang_raises(self, tmp_path):
+        tsv = tmp_path / "test.tsv"
+        tsv.write_text("en\tfr\n1\t2\n", encoding="utf-8")
+        with pytest.raises(KeyError):
+            TsvToDataFrame(file_path=tsv, langs=["en", "zh"]).transform(None)
+
 
 # ===========================================================================
 # BibleTransformer
 # ===========================================================================
 
+
 class TestBibleTransformer:
-    def _make_book(self, root: Path, book_name: str, lines: list):
+    def _make_book(self, root: Path, book_name: str, lines: list, name="English"):
         d = root / book_name
         d.mkdir(parents=True, exist_ok=True)
-        (d / "English.txt").write_text("\n".join(lines), encoding="utf-8")
+        (d / f"{name}.txt").write_text("\n".join(lines), encoding="utf-8")
+
+    def test_columns_named_by_lang_in_requested_order(self, tmp_path):
+        self._make_book(tmp_path, "1-b.GEN", ["in the beginning"])
+        self._make_book(tmp_path, "1-b.GEN", ["au commencement"], name="French")
+        df = BibleTransformer(
+            file_path=tmp_path, langs=["fr", "en"], books=2
+        ).transform(None)
+        assert list(df.columns) == ["fr", "en"]
+        assert df.loc[0, "fr"] == "au commencement"
+
+    def test_filename_comes_from_registry(self, tmp_path):
+        # Persian's Bible file is Farsi.txt, not langcodes' "Persian".
+        self._make_book(tmp_path, "1-b.GEN", ["x"], name="Farsi")
+        df = BibleTransformer(file_path=tmp_path, langs=["fa"], books=2).transform(None)
+        assert list(df.columns) == ["fa"]
+
+    def test_missing_file_raises(self, tmp_path):
+        self._make_book(tmp_path, "1-b.GEN", ["x"])
+        with pytest.raises(FileNotFoundError):
+            BibleTransformer(file_path=tmp_path, langs=["en", "fr"], books=2).transform(
+                None
+            )
+
+    def test_lang_without_bible_file_raises(self, tmp_path):
+        # Kazakh is in the registry but has no Bible translation.
+        self._make_book(tmp_path, "1-b.GEN", ["x"])
+        with pytest.raises(ValueError):
+            BibleTransformer(file_path=tmp_path, langs=["en", "kk"], books=2).transform(
+                None
+            )
 
     def test_single_book_shape(self, tmp_path):
         self._make_book(tmp_path, "1-b.GEN", ["line1", "line2", "line3"])
@@ -68,6 +115,7 @@ class TestBibleTransformer:
 # Un6Transformer
 # ===========================================================================
 
+
 class TestUn6Transformer:
     def _write(self, root: Path, lang: str, lines: list):
         (root / f"UNv1.0.6way.{lang}").write_text("\n".join(lines), encoding="utf-8")
@@ -88,7 +136,9 @@ class TestUn6Transformer:
     def test_nrows_truncation(self, tmp_path):
         for lang in ["en", "fr"]:
             self._write(tmp_path, lang, [str(i) for i in range(10)])
-        df = Un6Transformer(file_path=tmp_path, langs=["en", "fr"], nrows=4).transform(None)
+        df = Un6Transformer(file_path=tmp_path, langs=["en", "fr"], nrows=4).transform(
+            None
+        )
         assert df.shape[0] == 4
 
     def test_fit_returns_self(self, tmp_path):
