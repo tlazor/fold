@@ -21,10 +21,20 @@ uv run python src/run_pipeline.py --signal-mode embedding --dataset bible --mode
 # After `uv sync`, the installed entry point is also available:
 uv run fold-pipeline --signal-mode likelihood --help
 
+# Run and explore experiments in a marimo notebook (pick settings, press Run)
+uv run marimo edit notebooks/experiments.py
+
+# Render a notebook report for one configuration without the editor; takes the
+# run_pipeline flags after `--`, plus --run (repeat --layers for several layers)
+uv run marimo export html notebooks/experiments.py -o report.html -- --run --dataset bible --signal-mode embedding --layers 6 --layers 12
+
 # Linting
-uv run ruff check src/
-uv run ruff format src/
+uv run ruff check src/ tests/ notebooks/
+uv run ruff format src/ tests/ notebooks/
+uv run marimo check notebooks/
 ```
+
+The notebook sets `HF_HOME` to `data/models` (as the Docker image does) so local runs use the downloaded models; the CLI doesn't, so set `HF_HOME=data/models` yourself when running `run_pipeline.py` outside Docker.
 
 Docker (for GPU workloads, requires NVIDIA container runtime):
 ```bash
@@ -52,7 +62,7 @@ Output files: `{output_dir}/{dataset}_{model}_{signal_mode}_output.txt`
 
 ## Architecture
 
-`run_pipeline.py` builds the samples once, extracts each layer's signal once, then computes every band and metric from memory and writes them in band → metric → layer order. The data flow is:
+`run_pipeline.py` builds the samples once, extracts each layer's signal once, then computes every band and metric from memory and writes them in band → metric → layer order. Its `run_experiment(config)` returns the results in memory and `write_results()` writes the text file; with `analysis.correlate_with_baselines()` / `baseline_pairs()` these are what `notebooks/experiments.py` builds on. The data flow is:
 
 ```
 DataLoader → TokenTransform → SampleTokens → [LikelihoodEstimator | EmbedTransformer]
